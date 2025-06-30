@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  backend:
+    image: your-dockerhub-username/transfileserver-backend:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./uploads:/app/uploads
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+
+  frontend:
+    image: your-dockerhub-username/transfileserver-frontend:latest
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    environment:
+      - REACT_APP_API_URL=http://your-server-domain:8000
+    restart: unless-stopped
+
+volumes:
+  uploads:
+    driver: local 
