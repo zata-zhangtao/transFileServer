@@ -67,6 +67,21 @@ async def list_files():
             })
     return {"files": files}
 
+@app.delete("/delete/{file_id}")
+async def delete_file(file_id: str):
+    matching_files = list(UPLOAD_DIR.glob(f"{file_id}*"))
+    
+    if not matching_files:
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    file_path = matching_files[0]
+    
+    try:
+        file_path.unlink()
+        return {"message": "File deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting file: {str(e)}")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -14,7 +14,7 @@ function App() {
   const [uploadStatus, setUploadStatus] = useState('');
   const [downloadId, setDownloadId] = useState('');
 
-  const API_BASE = 'http://localhost:8000';
+  const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
   const fetchFiles = async () => {
     try {
@@ -65,7 +65,7 @@ function App() {
     }
   };
 
-  const handleDownload = async (fileId: string) => {
+  const handleDownload = async (fileId: string, filename?: string) => {
     try {
       const response = await fetch(`${API_BASE}/download/${fileId}`);
       if (response.ok) {
@@ -73,27 +73,49 @@ function App() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = response.headers.get('Content-Disposition')?.split('filename=')[1] || 'download';
+        a.download = filename || response.headers.get('Content-Disposition')?.split('filename=')[1] || 'download';
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       } else {
-        alert('Download failed');
+        window.alert('Download failed');
       }
     } catch (error) {
-      alert('Download error');
+      window.alert('Download error');
       console.error('Error:', error);
     }
   };
 
   const handleDownloadById = async () => {
     if (!downloadId) {
-      alert('Please enter a file ID');
+      window.alert('Please enter a file ID');
       return;
     }
     await handleDownload(downloadId);
     setDownloadId('');
+  };
+
+  const handleDelete = async (fileId: string) => {
+    if (!window.confirm('Are you sure you want to delete this file?')) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${API_BASE}/delete/${fileId}`, {
+        method: 'DELETE',
+      });
+      
+      if (response.ok) {
+        window.alert('File deleted successfully');
+        fetchFiles();
+      } else {
+        window.alert('Delete failed');
+      }
+    } catch (error) {
+      window.alert('Delete error');
+      console.error('Error:', error);
+    }
   };
 
   return (
@@ -143,8 +165,11 @@ function App() {
               {files.map((file) => (
                 <li key={file.file_id}>
                   <span>{file.filename} ({file.size} bytes)</span>
-                  <button onClick={() => handleDownload(file.file_id)}>
+                  <button onClick={() => handleDownload(file.file_id, file.filename)}>
                     Download
+                  </button>
+                  <button onClick={() => handleDelete(file.file_id)} style={{marginLeft: '10px', backgroundColor: '#ff4444'}}>
+                    Delete
                   </button>
                   <span className="file-id">ID: {file.file_id}</span>
                 </li>
