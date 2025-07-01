@@ -1,80 +1,120 @@
+/* Main App container styles */
 .App {
-  text-align: center;
-  min-height: 100vh;
+  text-align: center;  /* Center-align all text inside */
+  min-height: 100vh;   /* vh = viewport height, 100vh = full screen height */
+  
+  /* CSS Gradient - creates a smooth color transition */
+  /* 135deg = diagonal direction, from top-left to bottom-right */
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  
+  /* Font stack - tries fonts in order until one is found */
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+/* Header section that contains all the main content */
 .App-header {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 2rem;
-  color: white;
-  max-width: 1200px;
-  margin: 0 auto;
+  min-height: 100vh;  /* Full viewport height */
+  
+  /* Flexbox layout - modern CSS layout system */
+  display: flex;              /* Enable flexbox */
+  flex-direction: column;     /* Stack items vertically */
+  align-items: center;        /* Center items horizontally */
+  justify-content: flex-start; /* Align items to top */
+  
+  padding: 2rem;  /* rem = relative to root font size, 2rem = 32px typically */
+  color: white;   /* Text color */
+  
+  /* Container constraints */
+  max-width: 1200px;  /* Don't get wider than 1200px */
+  margin: 0 auto;     /* Center the container horizontally */
 }
 
+/* Main heading styles */
 .App-header h1 {
-  font-size: 3rem;
-  font-weight: 800;
+  font-size: 3rem;    /* 3 times the root font size */
+  font-weight: 800;   /* Very bold (100-900 scale) */
   margin-bottom: 2rem;
+  
+  /* Advanced gradient text effect */
   background: linear-gradient(135deg, #ffffff 0%, #f0f8ff 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  
+  /* Webkit-specific properties for gradient text */
+  -webkit-background-clip: text;      /* Clip background to text shape */
+  -webkit-text-fill-color: transparent; /* Make text transparent to show gradient */
+  background-clip: text;              /* Standard property */
+  
+  /* Text shadow for depth */
   text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  /* rgba(red, green, blue, alpha) - alpha is transparency (0-1) */
 }
 
+/* Shared styles for all main sections */
 .upload-section, .download-section, .files-section {
-  margin: 1.5rem 0;
-  padding: 2rem;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  margin: 1.5rem 0;  /* Vertical margin only */
+  padding: 2rem;     /* Internal spacing */
+  border-radius: 20px; /* Rounded corners */
+  
+  /* Glass morphism effect - modern design trend */
+  background: rgba(255, 255, 255, 0.1);  /* Semi-transparent white */
+  backdrop-filter: blur(10px);            /* Blur background behind element */
+  border: 1px solid rgba(255, 255, 255, 0.2); /* Subtle border */
+  
+  /* Box shadow for depth - x-offset, y-offset, blur, spread, color */
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  
   width: 100%;
-  max-width: 600px;
+  max-width: 600px;  /* Don't get too wide */
+  
+  /* CSS Transitions - smooth animations when properties change */
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+  /* 0.3s = duration, ease = timing function */
 }
 
+/* Hover effects - styles that apply when user hovers over element */
 .upload-section:hover, .download-section:hover, .files-section:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);  /* Move up slightly */
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15); /* Stronger shadow */
 }
 
+/* Section heading styles */
 .upload-section h2, .download-section h2, .files-section h2 {
   font-size: 1.5rem;
-  font-weight: 600;
+  font-weight: 600;    /* Semi-bold */
   margin-bottom: 1.5rem;
   color: #ffffff;
 }
 
+/* Generic spacing for upload and download sections */
 .upload-section div, .download-section {
   margin: 1rem 0;
 }
 
+/* File input styling */
 .upload-section input[type="file"] {
   margin: 0.5rem;
   padding: 1rem;
   border-radius: 12px;
+  
+  /* Dashed border for file drop zone aesthetic */
   border: 2px dashed rgba(255, 255, 255, 0.3);
   background: rgba(255, 255, 255, 0.05);
   color: white;
+  
   width: 100%;
   max-width: 400px;
+  
+  /* Smooth transitions for interactions */
   transition: all 0.3s ease;
   font-size: 1rem;
 }
 
+/* File input hover state */
 .upload-section input[type="file"]:hover {
-  border-color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);  /* More visible border */
+  background: rgba(255, 255, 255, 0.1);    /* Slightly more opaque */
 }
 
+/* Text inputs and textarea styling */
 .upload-section textarea, .download-section input {
   margin: 0.5rem;
   padding: 1rem;
@@ -88,137 +128,193 @@
   max-width: 400px;
 }
 
+/* Placeholder text styling */
 .upload-section textarea::placeholder, .download-section input::placeholder {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.6);  /* Semi-transparent white */
 }
 
+/* Focus states - when user clicks into input field */
 .upload-section textarea:focus, .download-section input:focus {
-  outline: none;
-  border-color: #61dafb;
-  background: rgba(255, 255, 255, 0.15);
+  outline: none;  /* Remove default browser outline */
+  border-color: #61dafb;  /* Brand color border */
+  background: rgba(255, 255, 255, 0.15);  /* Slightly more visible */
+  
+  /* Custom focus ring - more accessible than removing outline */
   box-shadow: 0 0 0 3px rgba(97, 218, 251, 0.2);
 }
 
+/* Button styling - shared across all buttons */
 .upload-section button, .download-section button, .files-section button {
+  /* Gradient background */
   background: linear-gradient(135deg, #61dafb 0%, #4fa8c5 100%);
   color: white;
-  border: none;
-  padding: 1rem 2rem;
+  border: none;  /* Remove default button border */
+  
+  padding: 1rem 2rem;  /* Vertical and horizontal padding */
   margin: 0.5rem;
   border-radius: 12px;
-  cursor: pointer;
+  cursor: pointer;     /* Show hand cursor on hover */
+  
+  /* Typography */
   font-weight: 600;
   font-size: 1rem;
+  text-transform: uppercase;  /* MAKE TEXT UPPERCASE */
+  letter-spacing: 0.5px;      /* Space between letters */
+  
+  /* Animations and effects */
   transition: all 0.3s ease;
   box-shadow: 0 4px 15px rgba(97, 218, 251, 0.3);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
+/* Button hover effects */
 .upload-section button:hover, .download-section button:hover, .files-section button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(97, 218, 251, 0.4);
+  transform: translateY(-2px);  /* Lift up effect */
+  box-shadow: 0 6px 20px rgba(97, 218, 251, 0.4);  /* Stronger shadow */
+  
+  /* Reverse gradient direction on hover */
   background: linear-gradient(135deg, #4fa8c5 0%, #61dafb 100%);
 }
 
+/* Button active state - when being clicked */
 .upload-section button:active, .download-section button:active, .files-section button:active {
-  transform: translateY(0);
+  transform: translateY(0);  /* Return to original position */
 }
 
+/* Files list styling */
 .files-section ul {
-  list-style-type: none;
-  padding: 0;
-  margin: 0;
+  list-style-type: none;  /* Remove bullet points */
+  padding: 0;   /* Remove default padding */
+  margin: 0;    /* Remove default margin */
 }
 
+/* Individual file item styling */
 .files-section li {
+  /* Flexbox for layout */
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  justify-content: space-between;  /* Spread items apart */
+  align-items: center;             /* Center vertically */
+  
   padding: 1.5rem;
   margin: 1rem 0;
+  
+  /* Glass effect similar to sections */
   background: rgba(255, 255, 255, 0.1);
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.3s ease;
   backdrop-filter: blur(5px);
+  
+  transition: all 0.3s ease;
+  
+  /* Responsive design - wrap items on small screens */
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.5rem;  /* Space between wrapped items */
 }
 
+/* File item hover effect */
 .files-section li:hover {
   background: rgba(255, 255, 255, 0.15);
-  transform: translateX(5px);
+  transform: translateX(5px);  /* Slide right slightly */
   border-color: rgba(255, 255, 255, 0.2);
 }
 
+/* File name styling */
 .files-section li span:first-child {
   font-weight: 500;
   font-size: 1rem;
   color: #ffffff;
-  flex-grow: 1;
-  text-align: left;
+  flex-grow: 1;      /* Take up available space */
+  text-align: left;  /* Left-align text */
   margin-right: 1rem;
 }
 
+/* Smaller buttons within file items */
 .files-section li button {
   margin: 0 0.25rem;
-  padding: 0.6rem 1rem;
-  font-size: 0.8rem;
-  min-width: 80px;
-  white-space: nowrap;
+  padding: 0.6rem 1rem;  /* Smaller padding */
+  font-size: 0.8rem;     /* Smaller font */
+  min-width: 80px;       /* Consistent button width */
+  white-space: nowrap;   /* Don't wrap button text */
 }
 
+/* File ID display styling */
 .file-id {
   font-size: 0.85rem;
-  color: rgba(97, 218, 251, 0.8);
+  color: rgba(97, 218, 251, 0.8);  /* Brand color, semi-transparent */
   margin-left: 1rem;
+  
+  /* Monospace font for code-like appearance */
   font-family: 'Monaco', 'Menlo', monospace;
+  
+  /* Subtle background and border */
   background: rgba(97, 218, 251, 0.1);
   padding: 0.3rem 0.8rem;
   border-radius: 8px;
   border: 1px solid rgba(97, 218, 251, 0.2);
 }
 
+/* Upload status message styling */
 .upload-status {
   margin-top: 1rem;
   padding: 1rem;
   border-radius: 12px;
-  background: rgba(76, 175, 80, 0.1);
-  border: 1px solid rgba(76, 175, 80, 0.3);
-  color: #81c784;
+  
+  /* Success message styling */
+  background: rgba(76, 175, 80, 0.1);   /* Light green background */
+  border: 1px solid rgba(76, 175, 80, 0.3);  /* Green border */
+  color: #81c784;  /* Green text */
   font-weight: 500;
 }
 
+/* No files message */
 .no-files {
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.7);  /* Muted white */
   font-style: italic;
   font-size: 1.1rem;
   padding: 2rem;
 }
 
+/* Media Queries - Responsive design for different screen sizes */
+/* This applies styles only when screen width is 768px or smaller */
 @media (max-width: 768px) {
+  /* Adjust header for mobile */
   .App-header {
-    padding: 1rem;
+    padding: 1rem;  /* Less padding on mobile */
   }
   
+  /* Smaller heading on mobile */
   .App-header h1 {
-    font-size: 2rem;
+    font-size: 2rem;  /* Smaller than desktop */
   }
   
+  /* Adjust sections for mobile */
   .upload-section, .download-section, .files-section {
-    padding: 1.5rem;
-    margin: 1rem 0;
+    padding: 1.5rem;  /* Less padding */
+    margin: 1rem 0;   /* Less margin */
   }
   
+  /* Stack file items vertically on mobile */
   .files-section li {
-    flex-direction: column;
-    gap: 1rem;
-    text-align: center;
+    flex-direction: column;  /* Stack vertically instead of horizontally */
+    gap: 1rem;              /* More space between stacked items */
+    text-align: center;     /* Center everything */
   }
   
+  /* Center file names on mobile */
   .files-section li span:first-child {
     text-align: center;
-    margin-right: 0;
+    margin-right: 0;  /* Remove right margin */
   }
 }
+
+/* Key CSS concepts explained:
+ * 1. Flexbox - Modern layout system for arranging elements
+ * 2. CSS Grid - Another layout system (not used here but worth knowing)
+ * 3. Transitions - Smooth animations between states
+ * 4. Media queries - Different styles for different screen sizes
+ * 5. Pseudo-classes (:hover, :focus, :active) - Styles for different states
+ * 6. CSS custom properties (variables) - Not used here but modern approach
+ * 7. Box model - margin, border, padding, content
+ * 8. Positioning - static, relative, absolute, fixed, sticky
+ * 9. Z-index - Layering elements on top of each other
+ * 10. Transform - Move, rotate, scale elements without affecting layout
+ */
