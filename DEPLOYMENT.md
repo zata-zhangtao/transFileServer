@@ -77,8 +77,16 @@
    ```
    
    修改以下内容：
-   - `your-dockerhub-username` → 您的Docker Hub用户名
-   - `your-server-domain` → 您的服务器域名或IP地址
+   - `zata/transfileserver-backend:latest` → `your-dockerhub-username/transfileserver-backend:latest`
+   - `zata/transfileserver-frontend:latest` → `your-dockerhub-username/transfileserver-frontend:latest`
+   - `<backend-port>` → 您想要的后端端口号（如：8000）
+   - `<frontend-port>` → 您想要的前端端口号（如：80）
+   - `<backend-port>` in REACT_APP_API_URL → 与上面后端端口号相同
+   
+   **重要**：确保 `REACT_APP_API_URL` 中的URL是从用户浏览器可以访问的地址：
+   - 如果使用域名：`http://your-domain.com:8000`
+   - 如果使用IP：`http://your-server-ip:8000`
+   - 如果本地测试：`http://localhost:8000`
 
 4. 启动服务：
    ```bash
@@ -131,6 +139,17 @@ server {
 
 ### 6. 环境变量配置
 
+#### 前端环境变量说明
+
+前端镜像现在支持运行时环境变量配置。`REACT_APP_API_URL` 环境变量会在容器启动时动态替换到构建好的JavaScript文件中。
+
+**重要提示**：
+- 前端是在用户浏览器中运行的，所以API URL必须是浏览器可以访问的地址
+- 不能使用Docker内部服务名（如 `http://backend:8000`）
+- 必须使用外部可访问的地址
+
+#### 使用 .env 文件管理环境变量
+
 您可以创建 `.env` 文件来管理环境变量：
 
 ```env
@@ -138,13 +157,23 @@ DOCKERHUB_USERNAME=your-username
 SERVER_DOMAIN=your-domain.com
 BACKEND_PORT=8000
 FRONTEND_PORT=80
+API_URL=http://your-domain.com:8000
 ```
 
 然后在 `docker-compose.prod.yml` 中使用：
 ```yaml
-image: ${DOCKERHUB_USERNAME}/transfileserver-backend:latest
-environment:
-  - REACT_APP_API_URL=http://${SERVER_DOMAIN}:${BACKEND_PORT}
+services:
+  backend:
+    image: ${DOCKERHUB_USERNAME}/transfileserver-backend:latest
+    ports:
+      - "${BACKEND_PORT}:8000"
+  
+  frontend:
+    image: ${DOCKERHUB_USERNAME}/transfileserver-frontend:latest
+    ports:
+      - "${FRONTEND_PORT}:80"
+    environment:
+      - REACT_APP_API_URL=${API_URL}
 ```
 
 ## 🚀 优势
