@@ -20,6 +20,8 @@
   #    docker-compose -f docker-compose.prod.yml logs -f
 #
 # 注意: 请将镜像名中的 'zata' 替换为您的 Docker Hub 用户名
+# 注意： 最好强制拉去进行，否则可能使用缓存镜像，导致无法更新，命令是：
+#    docker-compose -f docker-compose.prod.yml up -d --pull always
 
 version: '3.8'
 
