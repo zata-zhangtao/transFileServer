@@ -10,6 +10,7 @@ interface FileInfo {
   file_id: string;    // Each file has a unique ID (string type)
   filename: string;   // The original filename
   size: number;       // File size in bytes (number type)
+  type?: string;      // Optional: file type (from backend response)
 }
 
 // Main App component - this is a "functional component" (modern React style)
@@ -36,9 +37,15 @@ function App() {
   // State for the download ID input field
   const [downloadId, setDownloadId] = useState('');
 
+  // State for storing copy status messages
+  const [copyStatus, setCopyStatus] = useState<{[key: string]: string}>({});
+
   // Environment variable for API base URL - falls back to localhost if not set
   // process.env gives access to environment variables
   const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
+  // File size limit: 50MB in bytes
+  const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
   // Async function to fetch files from the server
   // async/await is modern JavaScript for handling asynchronous operations
@@ -74,6 +81,12 @@ function App() {
     if (!selectedFile && !textContent) {
       setUploadStatus('Please select a file or enter text');
       return; // Exit early if validation fails
+    }
+
+    // Check file size if a file is selected
+    if (selectedFile && selectedFile.size > MAX_FILE_SIZE) {
+      setUploadStatus(`File size (${(selectedFile.size / 1024 / 1024).toFixed(2)}MB) exceeds the maximum limit of 50MB`);
+      return; // Exit early if file is too large
     }
 
     // FormData is a browser API for sending file uploads
@@ -115,6 +128,51 @@ function App() {
       }
     } catch (error) {
       setUploadStatus('Upload error');
+      console.error('Error:', error);
+    }
+  };
+
+  // Function to copy text content to clipboard for small files
+  const handleCopyText = async (fileId: string, filename: string) => {
+    try {
+      const response = await fetch(`${API_BASE}/download/${fileId}`);
+      
+      if (response.ok) {
+        const text = await response.text();
+        
+        // Copy to clipboard using modern clipboard API
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          // Fallback for older browsers
+          const textArea = document.createElement('textarea');
+          textArea.value = text;
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+        }
+        
+        // Show success message
+        setCopyStatus(prev => ({
+          ...prev,
+          [fileId]: 'Copied to clipboard!'
+        }));
+        
+        // Clear the message after 2 seconds
+        setTimeout(() => {
+          setCopyStatus(prev => {
+            const newStatus = { ...prev };
+            delete newStatus[fileId];
+            return newStatus;
+          });
+        }, 2000);
+        
+      } else {
+        window.alert('Copy failed');
+      }
+    } catch (error) {
+      window.alert('Copy error');
       console.error('Error:', error);
     }
   };
@@ -215,7 +273,14 @@ function App() {
              {/* e.target.files?.[0] uses optional chaining (?.) to safely access files[0] */}
              <input
                type="file"
-               onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+               onChange={(e) => {
+                 const file = e.target.files?.[0] || null;
+                 setSelectedFile(file);
+                 // Clear any previous upload status when selecting a new file
+                 if (uploadStatus) {
+                   setUploadStatus('');
+                 }
+               }}
              />
            </div>
           
@@ -234,6 +299,16 @@ function App() {
           
           {/* Upload button */}
           <button onClick={handleFileUpload}>Upload</button>
+          
+          {/* File size information */}
+          {selectedFile && (
+            <p style={{fontSize: '0.9em', color: '#666'}}>
+              Selected file: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)}MB)
+              {selectedFile.size > MAX_FILE_SIZE && (
+                <span style={{color: '#ff4444'}}> - File too large!</span>
+              )}
+            </p>
+          )}
           
           {/* Conditional rendering - only show status if it exists */}
           {uploadStatus && <p>{uploadStatus}</p>}
@@ -266,30 +341,64 @@ function App() {
             // If files exist, render the list
             <ul>
               {/* Array.map() - transforms each array item into JSX */}
-              {files.map((file) => (
-                // Each list item needs a unique 'key' prop for React's reconciliation
-                <li key={file.file_id}>
-                  {/* Display file info */}
-                  <span>{file.filename} ({file.size} bytes)</span>
-                  
-                  {/* Download button - passes file info to handler */}
-                  <button onClick={() => handleDownload(file.file_id, file.filename)}>
-                    Download
-                  </button>
-                  
-                                     {/* Delete button with inline styles */}
-                   {/* style prop takes an object with camelCase CSS properties */}
-                   <button 
-                     onClick={() => handleDelete(file.file_id)} 
-                     style={{marginLeft: '10px', backgroundColor: '#ff4444'}}
-                   >
-                     Delete
-                   </button>
-                  
-                  {/* File ID display */}
-                  <span className="file-id">ID: {file.file_id}</span>
-                </li>
-              ))}
+              {files.map((file) => {
+                // Check if it's a text file and small enough for preview
+                const isTextFile = file.filename.endsWith('.txt');
+                const isSmallFile = file.size <= 200;
+                const shouldShowPreview = isTextFile && isSmallFile;
+                
+                return (
+                  // Each list item needs a unique 'key' prop for React's reconciliation
+                  <li key={file.file_id} style={{marginBottom: '15px', padding: '10px', border: '1px solid #ddd', borderRadius: '5px'}}>
+                    {/* Display file info */}
+                    <div>
+                      <span>{file.filename} ({file.size} bytes)</span>
+                      <span className="file-id" style={{marginLeft: '10px', color: '#666'}}>ID: {file.file_id}</span>
+                    </div>
+                    
+                    {/* Button container */}
+                    <div style={{marginTop: '8px'}}>
+                      {/* Show copy button for small text files */}
+                      {shouldShowPreview && (
+                        <button 
+                          onClick={() => handleCopyText(file.file_id, file.filename)}
+                          style={{marginRight: '10px', backgroundColor: '#2196F3', color: 'white'}}
+                        >
+                          📋 Copy Text
+                        </button>
+                      )}
+                      
+                      {/* Download button - passes file info to handler */}
+                      <button onClick={() => handleDownload(file.file_id, file.filename)}>
+                        Download
+                      </button>
+                      
+                      {/* Delete button with inline styles */}
+                      {/* style prop takes an object with camelCase CSS properties */}
+                      <button 
+                        onClick={() => handleDelete(file.file_id)} 
+                        style={{marginLeft: '10px', backgroundColor: '#ff4444'}}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                    
+                    {/* Copy status message */}
+                    {copyStatus[file.file_id] && (
+                      <div style={{
+                        marginTop: '5px', 
+                        padding: '5px 10px', 
+                        backgroundColor: '#4CAF50', 
+                        color: 'white',
+                        borderRadius: '3px',
+                        fontSize: '0.9em'
+                      }}>
+                        {copyStatus[file.file_id]}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

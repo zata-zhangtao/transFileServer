@@ -1,10 +1,33 @@
+# 生产环境 Docker Compose 配置文件
+# 
+# 使用方法:
+#  1. 运行命令时临时传递参数
+#    BACKEND_PORT=8000 FRONTEND_PORT=80 SERVER_IP=127.0.0.1 docker-compose -f docker-compose.prod.yml up -d
+#
+# 2. 创建 .env 文件并设置环境变量:
+  #   1. 在项目根目录下创建.env文件
+  #    SERVER_IP=your-server-ip-or-domain
+  #    BACKEND_PORT=8000
+  #    FRONTEND_PORT=3000
+  #
+  # 2. 启动服务:
+  #    docker-compose -f docker-compose.prod.yml up -d
+  #
+  # 3. 停止服务:
+  #    docker-compose -f docker-compose.prod.yml down
+  #
+  # 4. 查看日志:
+  #    docker-compose -f docker-compose.prod.yml logs -f
+#
+# 注意: 请将镜像名中的 'zata' 替换为您的 Docker Hub 用户名
+
 version: '3.8'
 
 services:
   backend:
     image: zata/transfileserver-backend:latest
     ports:
-      - "<backend-port>:8000"
+      - "${BACKEND_PORT}:8000"
     volumes:
       - ./uploads:/app/uploads
     environment:
@@ -14,11 +37,11 @@ services:
   frontend:
     image: zata/transfileserver-frontend:latest
     ports:
-      - "<frontend-port>:80"
+      - "${FRONTEND_PORT}:80"
     depends_on:
       - backend
     environment:
-      - REACT_APP_API_URL=http://<your-server-ip>:<backend-port>
+      - REACT_APP_API_URL=http://${SERVER_IP}:${BACKEND_PORT}
     restart: unless-stopped
 
 volumes:

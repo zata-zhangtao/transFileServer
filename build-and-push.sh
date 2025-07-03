@@ -1,7 +1,9 @@
 #!/bin/bash
 
 # 构建和推送Docker镜像到Docker Hub
-# 使用方法: ./build-and-push.sh your-dockerhub-username
+# 使用方法: ./build-and-push.sh your-dockerhub-username version
+# 示例: ./build-and-push.sh zata 1.0.0 
+# 版本号为可选参数，默认为latest
 
 if [ -z "$1" ]; then
     echo "用法: $0 <your-dockerhub-username>"
