@@ -8,3 +8,5 @@ wheels/
 
 # Virtual environments
 .venv
+docker-compose.prod copy.yml
+docker-compose.prod test.yml

@@ -1,0 +1,70 @@
+site_name: File Transfer Server API Documentation
+site_description: API documentation for the file transfer server with FastAPI backend and React frontend
+site_author: Transfer File Server Team
+site_url: ""
+
+# Repository
+repo_name: transFileServer
+repo_url: ""
+
+# Theme
+theme:
+  name: material
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.top
+    - search.highlight
+    - search.share
+    - content.code.copy
+
+# Navigation
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - API Reference:
+    - Overview: api/overview.md
+    - Upload Files: api/upload.md
+    - Download Files: api/download.md
+    - List Files: api/files.md
+    - Delete Files: api/delete.md
+  - Examples: examples.md
+  - Deployment: deployment.md
+
+# Markdown extensions
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - def_list
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+# Plugins
+plugins:
+  - search

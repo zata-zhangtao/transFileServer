@@ -9,16 +9,20 @@ This is a file transfer server application with a FastAPI backend and React fron
 ### Backend (FastAPI - Python)
 - **main.py**: Single-file backend with all API endpoints
 - **API Endpoints**:
-  - `POST /upload` - Upload files or text content
+  - `POST /upload` - Upload files or text content (for small files)
+  - `POST /upload-chunk` - Upload file chunks for large files
+  - `GET /upload-status/{file_id}` - Check chunked upload status
   - `GET /download/{file_id}` - Download files by UUID
   - `GET /files` - List all available files  
   - `DELETE /delete/{file_id}` - Delete files by UUID
 - **File Storage**: Files stored in `uploads/` directory with UUID-based naming
+- **Chunked Upload**: Large files (>10MB) automatically use chunked upload with 5MB chunks
 - **CORS**: Configured to allow all origins for development
 
 ### Frontend (React - TypeScript)
 - **src/App.tsx**: Main application component with all functionality
 - **Key Features**: File upload, text upload, download by ID, file listing, file deletion
+- **Large File Support**: Automatic chunked upload for files >10MB with progress tracking
 - **API Integration**: Uses `REACT_APP_API_URL` environment variable for backend URL
 
 ## Common Development Commands
@@ -97,6 +101,10 @@ docker-compose -f docker-compose.prod.yml up -d
 - **File ID System**: Uses UUID4 for unique file identification
 - **File Naming**: Backend stores files as `{uuid}_{original_filename}` 
 - **Text Uploads**: Stored as `{uuid}.txt` files
+- **Large File Handling**: 
+  - Files >10MB use chunked upload (5MB chunks)
+  - Temporary chunks stored in `chunks/` directory during upload
+  - Chunks automatically merged when upload completes
 - **CORS**: Wide open for development (should be restricted in production)
 - **File Discovery**: Uses glob patterns to find files by UUID prefix
 
@@ -112,6 +120,36 @@ docker-compose -f docker-compose.prod.yml up -d
 - Frontend requires browser-accessible API URL (not Docker internal names)
 - Backend and frontend have separate Docker images for scalability
 - Deployment documentation available in `DEPLOYMENT.md` (Chinese)
+
+## Documentation
+
+### MkDocs API Documentation
+```bash
+# Install documentation dependencies
+pip install -r docs-requirements.txt
+
+# Build documentation
+./build-docs.sh build
+
+# Serve documentation locally (http://127.0.0.1:8001)
+./build-docs.sh serve
+
+# Deploy to GitHub Pages
+./build-docs.sh deploy
+
+# Validate documentation structure
+./build-docs.sh validate
+
+# Clean build artifacts
+./build-docs.sh clean
+```
+
+### Documentation Structure
+- **docs/**: MkDocs source files
+- **mkdocs.yml**: MkDocs configuration with Material theme
+- **build-docs.sh**: Documentation build and deployment script
+- **docs-requirements.txt**: Documentation dependencies
+- **site/**: Generated documentation (auto-created)
 
 ## Code Structure Notes
 

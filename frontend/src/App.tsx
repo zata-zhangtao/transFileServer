@@ -44,8 +44,8 @@ function App() {
   // process.env gives access to environment variables
   const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
-  // File size limit: 50MB in bytes
-  const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+  // File size limit for direct upload: 10MB in bytes (larger files will use chunked upload)
+  const CHUNK_UPLOAD_THRESHOLD = 10 * 1024 * 1024; // 10MB
 
   // Async function to fetch files from the server
   // async/await is modern JavaScript for handling asynchronous operations
@@ -83,10 +83,10 @@ function App() {
       return; // Exit early if validation fails
     }
 
-    // Check file size if a file is selected
-    if (selectedFile && selectedFile.size > MAX_FILE_SIZE) {
-      setUploadStatus(`File size (${(selectedFile.size / 1024 / 1024).toFixed(2)}MB) exceeds the maximum limit of 50MB`);
-      return; // Exit early if file is too large
+    // Check if file should use chunked upload
+    if (selectedFile && selectedFile.size > CHUNK_UPLOAD_THRESHOLD) {
+      await handleChunkedUpload(selectedFile);
+      return;
     }
 
     // FormData is a browser API for sending file uploads
@@ -130,6 +130,63 @@ function App() {
       setUploadStatus('Upload error');
       console.error('Error:', error);
     }
+  };
+
+  // Function to handle chunked file upload for large files
+  const handleChunkedUpload = async (file: File) => {
+    const chunkSize = 5 * 1024 * 1024; // 5MB chunks
+    const totalChunks = Math.ceil(file.size / chunkSize);
+    const fileId = generateFileId();
+    
+    setUploadStatus(`Uploading large file in ${totalChunks} chunks...`);
+    
+    try {
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * chunkSize;
+        const end = Math.min(start + chunkSize, file.size);
+        const chunk = file.slice(start, end);
+        
+        const formData = new FormData();
+        formData.append('file_id', fileId);
+        formData.append('chunk_index', i.toString());
+        formData.append('total_chunks', totalChunks.toString());
+        formData.append('filename', file.name);
+        formData.append('chunk', chunk);
+        
+        const response = await fetch(`${API_BASE}/upload-chunk`, {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Chunk ${i + 1} upload failed`);
+        }
+        
+        const result = await response.json();
+        const progress = ((i + 1) / totalChunks * 100).toFixed(1);
+        setUploadStatus(`Uploading: ${progress}% (${i + 1}/${totalChunks} chunks)`);
+        
+        // Check if upload is complete
+        if (result.status === 'completed') {
+          setUploadStatus(`Upload successful! File ID: ${result.file_id}`);
+          setSelectedFile(null);
+          fetchFiles();
+          return;
+        }
+      }
+    } catch (error) {
+      setUploadStatus(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('Chunked upload error:', error);
+    }
+  };
+
+  // Helper function to generate a unique file ID
+  const generateFileId = () => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c == 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
   };
 
   // Function to copy text content to clipboard for small files
@@ -264,7 +321,7 @@ function App() {
         
         {/* Upload Section */}
         <div className="upload-section">
-          <h2>Upload</h2>
+          <h2>📁 Upload Files</h2>
           
           {/* File input section */}
                      <div>
@@ -304,8 +361,8 @@ function App() {
           {selectedFile && (
             <p style={{fontSize: '0.9em', color: '#666'}}>
               Selected file: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)}MB)
-              {selectedFile.size > MAX_FILE_SIZE && (
-                <span style={{color: '#ff4444'}}> - File too large!</span>
+              {selectedFile.size > CHUNK_UPLOAD_THRESHOLD && (
+                <span style={{color: '#4CAF50'}}> - Will use chunked upload</span>
               )}
             </p>
           )}
@@ -402,6 +459,7 @@ function App() {
             </ul>
           )}
         </div>
+
       </header>
     </div>
   );
