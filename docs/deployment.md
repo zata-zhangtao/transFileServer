@@ -131,7 +131,30 @@ server {
 }
 ```
 
-### 5. Update Deployment
+### 5. Remote Deployment (Automated)
+
+For quick deployment to remote servers, use the automated deployment script:
+
+```bash
+# Make script executable
+chmod +x deploy-remote-test.sh
+
+# Deploy to remote server
+./deploy-remote-test.sh <server-ip> <ssh-user> <dockerhub-username> [ssh-port] [backend-port] [frontend-port]
+
+# Examples:
+./deploy-remote-test.sh 192.168.1.100 root zata
+./deploy-remote-test.sh 47.94.199.65 root zata 22 8002 3003
+```
+
+The script will:
+1. Check SSH connectivity
+2. Clean up old test versions
+3. Pull latest images
+4. Deploy with custom ports
+5. Start services automatically
+
+### 6. Update Deployment
 
 When code is updated:
 

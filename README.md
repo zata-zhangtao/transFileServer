@@ -2,6 +2,11 @@
 
 A simple file transfer server that allows you to upload files or text from one computer and download them from another using unique file IDs.
 
+## TODO
+1. if file more than 100MB， trun to online tranfer
+
+
+
 ## Features
 
 - Upload files or text content

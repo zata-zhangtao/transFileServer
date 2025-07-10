@@ -135,6 +135,9 @@ async def download_file(file_id: str):
     file_path = matching_files[0]
     filename = file_path.name.split("_", 1)[-1] if "_" in file_path.name else file_path.name
     
+    # Get file size
+    file_size = file_path.stat().st_size
+    
     # Properly encode filename for Content-Disposition header
     # Handle special characters by URL-encoding them
     encoded_filename = urllib.parse.quote(filename, safe='')
@@ -146,7 +149,11 @@ async def download_file(file_id: str):
         path=file_path,
         filename=filename,
         media_type='application/octet-stream',
-        headers={'Content-Disposition': content_disposition}
+        headers={
+            'Content-Disposition': content_disposition,
+            'Content-Length': str(file_size),
+            'Accept-Ranges': 'bytes'
+        }
     )
 
 @app.get("/files")

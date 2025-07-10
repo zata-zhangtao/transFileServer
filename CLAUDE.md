@@ -23,6 +23,7 @@ This is a file transfer server application with a FastAPI backend and React fron
 - **src/App.tsx**: Main application component with all functionality
 - **Key Features**: File upload, text upload, download by ID, file listing, file deletion
 - **Large File Support**: Automatic chunked upload for files >10MB with progress tracking
+- **Download Progress**: Real-time progress tracking for downloads using XMLHttpRequest
 - **API Integration**: Uses `REACT_APP_API_URL` environment variable for backend URL
 
 ## Common Development Commands
@@ -73,6 +74,9 @@ docker-compose -f docker-compose.prod.yml up -d
 
 # Multi-platform build (supports ARM64 Mac building x86 images)
 ./build-and-push-multiplatform.sh your-username
+
+# Remote deployment to test servers
+./deploy-remote-test.sh <server-ip> <ssh-user> <dockerhub-username> [ssh-port] [backend-port] [frontend-port]
 ```
 
 ## File Structure Notes
@@ -81,6 +85,9 @@ docker-compose -f docker-compose.prod.yml up -d
 - **frontend/**: Complete React application with its own package.json
 - **Docker**: Separate Dockerfiles for backend (root) and frontend (frontend/)
 - **Build Scripts**: Shell scripts for Docker image building and pushing
+- **Deployment Scripts**: 
+  - `deploy-remote-test.sh`: Automated remote deployment with SSH
+  - `build-and-push-multiplatform.sh`: Multi-platform Docker builds
 
 ## Environment Variables
 
@@ -105,6 +112,10 @@ docker-compose -f docker-compose.prod.yml up -d
   - Files >10MB use chunked upload (5MB chunks)
   - Temporary chunks stored in `chunks/` directory during upload
   - Chunks automatically merged when upload completes
+- **Download Enhancement**: 
+  - Includes `Content-Length` header for progress tracking
+  - Includes `Accept-Ranges: bytes` header for range request support
+  - Frontend uses XMLHttpRequest for real-time progress updates
 - **CORS**: Wide open for development (should be restricted in production)
 - **File Discovery**: Uses glob patterns to find files by UUID prefix
 
@@ -115,11 +126,12 @@ docker-compose -f docker-compose.prod.yml up -d
 - Frontend image supports runtime environment variable injection
 - `REACT_APP_API_URL` is dynamically replaced at container startup
 - Use `.env` files for environment variable management in production
+- **Remote Deployment**: Automated SSH-based deployment script for test environments
 
 ### Production Configuration
 - Frontend requires browser-accessible API URL (not Docker internal names)
 - Backend and frontend have separate Docker images for scalability
-- Deployment documentation available in `DEPLOYMENT.md` (Chinese)
+- Deployment documentation available in `docs/deployment.md`
 
 ## Documentation
 
@@ -157,3 +169,22 @@ pip install -r docs-requirements.txt
 - **Backend**: Single-file FastAPI app with all endpoints in `main.py`
 - **No testing framework**: Project uses default React testing setup but no backend tests
 - **No linting configuration**: Standard Create React App ESLint setup only
+
+## Recent Enhancements
+
+### Download Progress Tracking
+- Backend now includes `Content-Length` and `Accept-Ranges` headers
+- Frontend implements XMLHttpRequest-based downloads with progress callbacks
+- Real-time progress bars with visual feedback during downloads
+- Proper error handling and status management for download operations
+
+### Enhanced Deployment
+- Added automated remote deployment script (`deploy-remote-test.sh`)
+- Supports SSH-based deployment to remote test servers
+- Configurable ports and automatic cleanup of old versions
+- Multi-platform Docker build support for ARM64 and x86_64 architectures
+
+### Documentation Updates
+- Complete API documentation with progress tracking examples
+- Enhanced deployment guide with automated deployment options
+- Comprehensive examples for frontend integration and progress UI

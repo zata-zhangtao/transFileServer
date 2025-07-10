@@ -4,7 +4,7 @@
 # 支持从ARM64 Mac构建x86镜像
 # 使用方法: ./build-and-push-multiplatform.sh your-dockerhub-username
 # 示例: ./build-and-push-multiplatform.sh zata latest linux/amd64,linux/arm64
-# 示例: ./build-and-push-multiplatform.sh zata v1.0 linux/amd64
+# 示例: ./build-and-push-multiplatform.sh zata test linux/amd64
 
 if [ -z "$1" ]; then
     echo "用法: $0 <your-dockerhub-username> [version] [platforms]"

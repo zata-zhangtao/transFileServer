@@ -161,9 +161,36 @@ class FileManager {
         return await response.json();
     }
 
-    async downloadFile(fileId) {
-        const response = await fetch(`${this.apiUrl}/download/${fileId}`);
-        return await response.blob();
+    async downloadFile(fileId, onProgress = null) {
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            
+            // Track download progress
+            if (onProgress) {
+                xhr.addEventListener('progress', (event) => {
+                    if (event.lengthComputable) {
+                        const progress = Math.round((event.loaded / event.total) * 100);
+                        onProgress(progress);
+                    }
+                });
+            }
+            
+            xhr.addEventListener('load', () => {
+                if (xhr.status === 200) {
+                    resolve(new Blob([xhr.response]));
+                } else {
+                    reject(new Error(`Download failed: ${xhr.status}`));
+                }
+            });
+            
+            xhr.addEventListener('error', () => {
+                reject(new Error('Download error'));
+            });
+            
+            xhr.open('GET', `${this.apiUrl}/download/${fileId}`, true);
+            xhr.responseType = 'blob';
+            xhr.send();
+        });
     }
 
     async listFiles() {
@@ -192,8 +219,10 @@ async function example() {
     const files = await fileManager.listFiles();
     console.log('Available files:', files);
     
-    // Download a file
-    const blob = await fileManager.downloadFile(textResult.file_id);
+    // Download a file with progress tracking
+    const blob = await fileManager.downloadFile(textResult.file_id, (progress) => {
+        console.log(`Download progress: ${progress}%`);
+    });
     console.log('Downloaded file size:', blob.size);
     
     // Delete a file
@@ -261,6 +290,122 @@ download_file "$FILE_ID" "downloaded_example.txt"
 
 echo "Deleting file..."
 delete_file "$FILE_ID"
+```
+
+## Download with Progress Tracking
+
+### Frontend Implementation with Progress Bar
+
+```javascript
+// Enhanced download function with visual progress feedback
+async function downloadWithProgress(fileId, filename) {
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const downloadButton = document.getElementById('download-btn');
+    
+    // Show progress UI
+    progressBar.style.display = 'block';
+    downloadButton.disabled = true;
+    downloadButton.textContent = 'Downloading...';
+    
+    try {
+        const xhr = new XMLHttpRequest();
+        
+        // Track download progress
+        xhr.addEventListener('progress', (event) => {
+            if (event.lengthComputable) {
+                const progress = Math.round((event.loaded / event.total) * 100);
+                progressBar.value = progress;
+                progressText.textContent = `${progress}%`;
+            }
+        });
+        
+        // Handle completion
+        xhr.addEventListener('load', () => {
+            if (xhr.status === 200) {
+                const blob = new Blob([xhr.response]);
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename || 'download';
+                a.click();
+                window.URL.revokeObjectURL(url);
+                
+                // Reset UI
+                progressBar.style.display = 'none';
+                downloadButton.disabled = false;
+                downloadButton.textContent = 'Download';
+                progressText.textContent = 'Download completed!';
+            }
+        });
+        
+        xhr.open('GET', `http://localhost:8000/download/${fileId}`, true);
+        xhr.responseType = 'blob';
+        xhr.send();
+        
+    } catch (error) {
+        console.error('Download failed:', error);
+        // Reset UI on error
+        progressBar.style.display = 'none';
+        downloadButton.disabled = false;
+        downloadButton.textContent = 'Download';
+        progressText.textContent = 'Download failed!';
+    }
+}
+```
+
+### HTML for Progress UI
+
+```html
+<div class="download-section">
+    <button id="download-btn" onclick="downloadWithProgress('file-id', 'filename.txt')">
+        Download
+    </button>
+    
+    <div id="progress-container" style="margin-top: 10px;">
+        <progress id="progress-bar" max="100" value="0" style="width: 100%; display: none;"></progress>
+        <div id="progress-text" style="text-align: center; margin-top: 5px;"></div>
+    </div>
+</div>
+
+<style>
+    .download-section {
+        max-width: 300px;
+        margin: 20px auto;
+    }
+    
+    #download-btn {
+        width: 100%;
+        padding: 10px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    
+    #download-btn:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+    }
+    
+    progress {
+        appearance: none;
+        height: 20px;
+        border-radius: 4px;
+        background-color: #f0f0f0;
+    }
+    
+    progress::-webkit-progress-bar {
+        background-color: #f0f0f0;
+        border-radius: 4px;
+    }
+    
+    progress::-webkit-progress-value {
+        background-color: #4CAF50;
+        border-radius: 4px;
+    }
+</style>
 ```
 
 ## Advanced Use Cases

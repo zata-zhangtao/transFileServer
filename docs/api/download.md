@@ -32,6 +32,8 @@ No special headers are required for this endpoint.
 
 **Headers**:
 - `Content-Disposition: attachment; filename="{original_filename}"`
+- `Content-Length: {file_size}`
+- `Accept-Ranges: bytes`
 
 The response body contains the binary file data.
 
@@ -70,26 +72,47 @@ else:
     print(f"Error: {response.json()}")
 ```
 
-**JavaScript (Fetch)**
+**JavaScript (Fetch with Progress)**
 ```javascript
 const fileId = "550e8400-e29b-41d4-a716-446655440000";
-fetch(`http://localhost:8000/download/${fileId}`)
-  .then(response => {
-    if (response.ok) {
-      return response.blob();
-    }
-    throw new Error('File not found');
-  })
-  .then(blob => {
-    // Create download link
+
+// Using XMLHttpRequest for progress tracking
+const xhr = new XMLHttpRequest();
+
+xhr.addEventListener('progress', (event) => {
+  if (event.lengthComputable) {
+    const progress = Math.round((event.loaded / event.total) * 100);
+    console.log(`Download progress: ${progress}%`);
+  }
+});
+
+xhr.addEventListener('load', () => {
+  if (xhr.status === 200) {
+    const blob = new Blob([xhr.response]);
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'downloaded_file.txt';
+    
+    // Extract filename from Content-Disposition header
+    const contentDisposition = xhr.getResponseHeader('Content-Disposition');
+    let filename = 'downloaded_file.txt';
+    
+    if (contentDisposition && contentDisposition.includes('filename=')) {
+      const match = contentDisposition.match(/filename="?([^"]+)"?/);
+      if (match) {
+        filename = match[1];
+      }
+    }
+    
+    a.download = filename;
     a.click();
     window.URL.revokeObjectURL(url);
-  })
-  .catch(error => console.error('Error:', error));
+  }
+});
+
+xhr.open('GET', `http://localhost:8000/download/${fileId}`, true);
+xhr.responseType = 'blob';
+xhr.send();
 ```
 
 ### Download with Proper Filename
@@ -127,6 +150,8 @@ The download endpoint:
 - For files: `{uuid}_{original_filename}` → `{original_filename}`
 - For text files: `{uuid}.txt` → `{uuid}.txt`
 - Sets `Content-Disposition` header for proper filename handling
+- Includes `Content-Length` header with file size for progress tracking
+- Includes `Accept-Ranges: bytes` header for range request support
 - Returns files as `application/octet-stream` for universal compatibility
 
 ## File Matching Logic

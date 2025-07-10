@@ -1,6 +1,6 @@
 // Import React library and specific hooks we'll use
 // React is the core library, useState and useEffect are "hooks" for managing state and side effects
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 // Import the CSS styles for this component
 import './App.css';
 
@@ -39,6 +39,10 @@ function App() {
 
   // State for storing copy status messages
   const [copyStatus, setCopyStatus] = useState<{[key: string]: string}>({});
+
+  // State for download progress tracking
+  const [downloadProgress, setDownloadProgress] = useState<{[key: string]: number}>({});
+  const [downloadStatus, setDownloadStatus] = useState<{[key: string]: 'downloading' | 'completed' | 'error'}>({});
 
   // Environment variable for API base URL - falls back to localhost if not set
   // process.env gives access to environment variables
@@ -234,42 +238,178 @@ function App() {
     }
   };
 
-  // Function to handle file downloads
+  // Create stable callback for progress updates
+  const updateProgress = useCallback((fileId: string, progress: number) => {
+    console.log(`Updating progress for ${fileId}: ${progress}%`);
+    setDownloadProgress(prev => {
+      const newProgress = { ...prev, [fileId]: progress };
+      console.log('New progress state:', newProgress);
+      return newProgress;
+    });
+  }, []);
+
+  const updateStatus = useCallback((fileId: string, status: 'downloading' | 'completed' | 'error') => {
+    console.log(`Updating status for ${fileId}: ${status}`);
+    setDownloadStatus(prev => {
+      const newStatus = { ...prev, [fileId]: status };
+      console.log('New status state:', newStatus);
+      return newStatus;
+    });
+  }, []);
+
+  // Function to handle file downloads with progress tracking using XMLHttpRequest
   // Takes fileId (required) and optional filename
-  const handleDownload = async (fileId: string, filename?: string) => {
+  const handleDownload = useCallback(async (fileId: string, filename?: string) => {
     // filename?: string means filename is optional (can be undefined)
-    try {
-      const response = await fetch(`${API_BASE}/download/${fileId}`);
+    return new Promise<void>((resolve, reject) => {
+      // Set initial download state
+      updateProgress(fileId, 0);
+      updateStatus(fileId, 'downloading');
+
+      const xhr = new XMLHttpRequest();
       
-      if (response.ok) {
-        // Convert response to a Blob (binary large object) for file download
-        const blob = await response.blob();
+      // Track download progress
+      xhr.addEventListener('progress', (event) => {
+        if (event.lengthComputable) {
+          const progress = Math.round((event.loaded / event.total) * 100);
+          console.log(`Download progress for ${fileId}: ${progress}%`);
+          // Use setTimeout to ensure React can process the state update
+          setTimeout(() => updateProgress(fileId, progress), 0);
+        } else {
+          // Show indeterminate progress when total size is unknown
+          const loadedMB = event.loaded / (1024 * 1024);
+          const progress = Math.min(95, Math.round(loadedMB * 10)); // Rough estimate
+          console.log(`Download progress for ${fileId}: ${progress}% (estimated)`);
+          setTimeout(() => updateProgress(fileId, progress), 0);
+        }
+      });
+
+      // Handle successful completion
+      xhr.addEventListener('load', () => {
+        console.log(`Download load event for ${fileId}, status: ${xhr.status}, response type: ${xhr.responseType}, response size: ${xhr.response?.size || 'unknown'}`);
         
-        // Create a temporary URL for the blob
-        const url = window.URL.createObjectURL(blob);
-        
-        // Create a temporary anchor element for download
-        const a = document.createElement('a');
-        a.href = url;
-        
-        // Set download filename - use provided name, or extract from headers, or default
-        a.download = filename || response.headers.get('Content-Disposition')?.split('filename=')[1] || 'download';
-        
-        // Trigger download by programmatically clicking the link
-        document.body.appendChild(a);
-        a.click();
-        
-        // Clean up - remove the temporary URL and element
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      } else {
-        window.alert('Download failed');
-      }
-    } catch (error) {
-      window.alert('Download error');
-      console.error('Error:', error);
-    }
-  };
+        if (xhr.status === 200) {
+          try {
+            // Check if we actually got a valid response
+            if (!xhr.response || xhr.response.size === 0) {
+              throw new Error('Empty response received');
+            }
+            
+            // Create blob from response
+            const blob = new Blob([xhr.response]);
+            console.log(`Created blob for ${fileId}, size: ${blob.size} bytes`);
+            
+            // Verify blob is not empty
+            if (blob.size === 0) {
+              throw new Error('Downloaded file is empty');
+            }
+            
+            // Create a temporary URL for the blob
+            const url = window.URL.createObjectURL(blob);
+            
+            // Create a temporary anchor element for download
+            const a = document.createElement('a');
+            a.href = url;
+            
+            // Extract filename from Content-Disposition header or use provided/default
+            const contentDisposition = xhr.getResponseHeader('Content-Disposition');
+            let downloadFilename = filename;
+            
+            if (contentDisposition && contentDisposition.includes('filename*=')) {
+              const match = contentDisposition.match(/filename\*=UTF-8''(.+)/);
+              if (match) {
+                downloadFilename = decodeURIComponent(match[1]);
+              }
+            } else if (contentDisposition && contentDisposition.includes('filename=')) {
+              const match = contentDisposition.match(/filename="?([^"]+)"?/);
+              if (match) {
+                downloadFilename = match[1];
+              }
+            }
+            
+            a.download = downloadFilename || 'download';
+            console.log(`Starting download for ${fileId} with filename: ${a.download}`);
+            
+            // Trigger download by programmatically clicking the link
+            document.body.appendChild(a);
+            a.click();
+            
+            // Clean up - remove the temporary URL and element
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            // Only mark as completed after successful download trigger
+            console.log(`Download completed successfully for ${fileId}`);
+            updateProgress(fileId, 100);
+            updateStatus(fileId, 'completed');
+            
+            // Clear progress after a delay
+            setTimeout(() => {
+              setDownloadProgress(prev => {
+                const newProgress = { ...prev };
+                delete newProgress[fileId];
+                return newProgress;
+              });
+              setDownloadStatus(prev => {
+                const newStatus = { ...prev };
+                delete newStatus[fileId];
+                return newStatus;
+              });
+            }, 2000);
+            
+            resolve();
+          } catch (error) {
+            console.error('Error processing download:', error);
+            updateProgress(fileId, 0); // Reset progress on error
+            updateStatus(fileId, 'error');
+            window.alert(`Download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            reject(error);
+          }
+        } else {
+          console.error('Download failed with status:', xhr.status, xhr.statusText);
+          updateProgress(fileId, 0); // Reset progress on error
+          updateStatus(fileId, 'error');
+          window.alert(`Download failed: HTTP ${xhr.status} ${xhr.statusText}`);
+          reject(new Error(`Download failed with status ${xhr.status}: ${xhr.statusText}`));
+        }
+      });
+
+      // Handle errors
+      xhr.addEventListener('error', () => {
+        console.error('Download error occurred for', fileId);
+        updateProgress(fileId, 0); // Reset progress on error
+        updateStatus(fileId, 'error');
+        window.alert('Download error occurred');
+        reject(new Error('Download error'));
+      });
+
+      // Handle abort
+      xhr.addEventListener('abort', () => {
+        console.log('Download aborted for', fileId);
+        updateProgress(fileId, 0); // Reset progress on abort
+        updateStatus(fileId, 'error');
+        reject(new Error('Download aborted'));
+      });
+
+      // Configure and start the request
+      console.log(`Starting XMLHttpRequest for ${fileId} to ${API_BASE}/download/${fileId}`);
+      xhr.open('GET', `${API_BASE}/download/${fileId}`, true);
+      xhr.responseType = 'blob'; // Important: set response type to blob for binary data
+      
+      // Add debugging for response headers
+      xhr.addEventListener('readystatechange', () => {
+        if (xhr.readyState === XMLHttpRequest.HEADERS_RECEIVED) {
+          console.log(`Headers received for ${fileId}:`);
+          console.log('Status:', xhr.status, xhr.statusText);
+          console.log('Content-Length:', xhr.getResponseHeader('Content-Length'));
+          console.log('Content-Type:', xhr.getResponseHeader('Content-Type'));
+          console.log('Content-Disposition:', xhr.getResponseHeader('Content-Disposition'));
+        }
+      });
+      
+      xhr.send();
+    });
+  }, [updateProgress, updateStatus]);
 
   // Handler for downloading by ID (from the input field)
   const handleDownloadById = async () => {
@@ -278,11 +418,16 @@ function App() {
       return;
     }
     
-    // Reuse the handleDownload function
-    await handleDownload(downloadId);
-    
-    // Clear the input field
-    setDownloadId('');
+    try {
+      // Reuse the handleDownload function
+      await handleDownload(downloadId);
+      
+      // Clear the input field only on success
+      setDownloadId('');
+    } catch (error) {
+      console.error('Download by ID failed:', error);
+      // Don't clear the input field on error so user can retry
+    }
   };
 
   // Handler for deleting files
@@ -382,7 +527,80 @@ function App() {
              value={downloadId}
              onChange={(e) => setDownloadId(e.target.value)}
            />
-          <button onClick={handleDownloadById}>Download</button>
+          <button 
+            onClick={handleDownloadById}
+            disabled={downloadStatus[downloadId] === 'downloading'}
+          >
+            {downloadStatus[downloadId] === 'downloading' ? 'Downloading...' : 'Download'}
+          </button>
+          
+          {/* Download progress bar for ID downloads */}
+          {downloadStatus[downloadId] === 'downloading' && (
+            <div style={{
+              marginTop: '10px',
+              padding: '0',
+              backgroundColor: '#f0f0f0',
+              borderRadius: '4px',
+              overflow: 'hidden',
+              position: 'relative',
+              height: '20px'
+            }}>
+              <div style={{
+                width: `${downloadProgress[downloadId] || 0}%`,
+                height: '100%',
+                backgroundColor: '#4CAF50',
+                transition: 'width 0.3s ease',
+                position: 'absolute',
+                top: 0,
+                left: 0
+              }}>
+              </div>
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#333',
+                fontSize: '0.8em',
+                fontWeight: 'bold',
+                textShadow: '1px 1px 2px rgba(255,255,255,0.8)'
+              }}>
+                {downloadProgress[downloadId] !== undefined ? `${downloadProgress[downloadId]}%` : 'Downloading...'}
+              </div>
+            </div>
+          )}
+          
+          {/* Download completed message for ID downloads */}
+          {downloadStatus[downloadId] === 'completed' && (
+            <div style={{
+              marginTop: '10px', 
+              padding: '5px 10px', 
+              backgroundColor: '#4CAF50', 
+              color: 'white',
+              borderRadius: '3px',
+              fontSize: '0.9em'
+            }}>
+              Download completed!
+            </div>
+          )}
+          
+          {/* Download error message for ID downloads */}
+          {downloadStatus[downloadId] === 'error' && (
+            <div style={{
+              marginTop: '10px', 
+              padding: '5px 10px', 
+              backgroundColor: '#f44336', 
+              color: 'white',
+              borderRadius: '3px',
+              fontSize: '0.9em'
+            }}>
+              Download failed!
+            </div>
+          )}
         </div>
 
         {/* Files List Section */}
@@ -426,8 +644,11 @@ function App() {
                       )}
                       
                       {/* Download button - passes file info to handler */}
-                      <button onClick={() => handleDownload(file.file_id, file.filename)}>
-                        Download
+                      <button 
+                        onClick={() => handleDownload(file.file_id, file.filename)}
+                        disabled={downloadStatus[file.file_id] === 'downloading'}
+                      >
+                        {downloadStatus[file.file_id] === 'downloading' ? 'Downloading...' : 'Download'}
                       </button>
                       
                       {/* Delete button with inline styles */}
@@ -439,6 +660,78 @@ function App() {
                         Delete
                       </button>
                     </div>
+                    
+                    {/* Download progress bar */}
+                    {downloadStatus[file.file_id] === 'downloading' && (
+                      <div style={{
+                        marginTop: '8px',
+                        padding: '0',
+                        backgroundColor: '#f0f0f0',
+                        borderRadius: '4px',
+                        overflow: 'hidden',
+                        position: 'relative',
+                        height: '20px'
+                      }}>
+                        <div style={{
+                          width: `${downloadProgress[file.file_id] || 0}%`,
+                          height: '100%',
+                          backgroundColor: '#4CAF50',
+                          transition: 'width 0.3s ease',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0
+                        }}>
+                        </div>
+                        <div style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#333',
+                          fontSize: '0.8em',
+                          fontWeight: 'bold',
+                          textShadow: '1px 1px 2px rgba(255,255,255,0.8)'
+                        }}>
+                          {downloadProgress[file.file_id] !== undefined ? `${downloadProgress[file.file_id]}%` : 'Downloading...'}
+                        </div>
+                        {/* Debug info */}
+                        <div style={{fontSize: '0.7em', color: '#666', marginTop: '2px'}}>
+                          Status: {downloadStatus[file.file_id]} | Progress: {downloadProgress[file.file_id]}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Download completed message */}
+                    {downloadStatus[file.file_id] === 'completed' && (
+                      <div style={{
+                        marginTop: '5px', 
+                        padding: '5px 10px', 
+                        backgroundColor: '#4CAF50', 
+                        color: 'white',
+                        borderRadius: '3px',
+                        fontSize: '0.9em'
+                      }}>
+                        Download completed!
+                      </div>
+                    )}
+                    
+                    {/* Download error message */}
+                    {downloadStatus[file.file_id] === 'error' && (
+                      <div style={{
+                        marginTop: '5px', 
+                        padding: '5px 10px', 
+                        backgroundColor: '#f44336', 
+                        color: 'white',
+                        borderRadius: '3px',
+                        fontSize: '0.9em'
+                      }}>
+                        Download failed!
+                      </div>
+                    )}
                     
                     {/* Copy status message */}
                     {copyStatus[file.file_id] && (
