@@ -1,40 +1,51 @@
 # Findings & Decisions
 
 ## Requirements
-- 读取 `tasks/prd-dokploy-cicd-single-image.md` 并完成其中落地任务。
-- 实现单镜像（前后端合并）部署形态。
-- 增加 GitHub Actions：PR 校验、main push 构建推送并触发 Dokploy 部署。
-- 增加 `/healthz` 健康检查并在部署后验证。
-- 更新文档并明确用户需要配置的项目项（Secrets、Dokploy 配置）。
+- 用户要求执行实际修改，不只是 PRD。
+- 使用 `planning-with-files` 技能管理复杂多文件改造。
+- 目标是 Dokploy + 内置 Traefik 代理接入（单域名 HTTPS）。
+
+## Confirmed Choices
+- 1A: 仅用 Dokploy 内置 Traefik
+- 2A: 前后端共用一个域名
+- 3A: Let's Encrypt 自动签发
+- 4A: 关闭宿主机端口直出
+- 5A: Host 路由
 
 ## Research Findings
-- 项目已有 `Dockerfile`、`docker-compose.prod.yml`、`build-and-push*.sh`，但当前仍是双镜像思路。
-- 仓库尚无 `.github/workflows`。
-- `main.py` 当前没有 `/healthz`，也没有静态页面挂载逻辑。
-- `frontend/src/App.tsx` 通过 `REACT_APP_API_URL` 访问 API，默认 `http://localhost:8000`。
-- 代码库未找到 `relay` 路由实现（仅 PRD 提到），当前可验证的是上传/分片/下载/列表/删除。
-- 当前仓库已有 `.gitignore` 和 `tasks/prd-dokploy-cicd-single-image.md` 的 staged 变更，不属于本次任务新增。
+- 当前生产 compose 仍有 `ports: "${APP_PORT:-8000}:8000"` 直出。
+- 后端已提供 `/healthz`，适合用域名健康检查。
+- 项目已是单镜像架构，适合 Traefik 同域反代。
+- CI 已支持 `PROD_HEALTHCHECK_URL`，只需更新 Secret 值到域名。
 
 ## Technical Decisions
 | Decision | Rationale |
 |----------|-----------|
-| 在 `main.py` 内直接托管 `frontend/build` 静态资源 | 避免新增反向代理组件，保持单容器结构 |
-| CI 使用 jobs: validate -> build_and_push -> deploy | 日志阶段清晰，满足 PRD 可定位失败阶段要求 |
-| deploy 后健康检查采用可选 secret `PROD_HEALTHCHECK_URL` | 兼容不同域名/端口环境，不硬编码 URL |
-| `docker-compose.prod.yml` 使用 `DOCKERHUB_USERNAME` + `APP_IMAGE_TAG` | 便于 Dokploy 切换 `latest` 与回滚 tag |
+| 从生产 compose 中移除 `ports` | 满足“仅通过 Traefik 暴露”安全目标 |
+| 使用 `expose: ["8000"]` 明确内部端口 | 提升可读性与部署语义 |
+| 文档统一改为域名入口 | 避免继续使用 `server:port` 的误配置 |
+| 暂不改 workflow 逻辑 | 现有 deploy hook + healthcheck 机制已满足需求 |
 
 ## Issues Encountered
 | Issue | Resolution |
 |-------|------------|
-|       |            |
-| frontend/build 目录权限导致 npm build 失败 | 使用 `BUILD_PATH=build-ci` 规避目录权限问题 |
-| 本机 Docker daemon 不可用 | 无法做镜像实构，保留 CI 中 docker build 作为门禁 |
+| 无 | - |
 
 ## Resources
-- tasks/prd-dokploy-cicd-single-image.md
-- main.py
-- Dockerfile
+- tasks/prd-dokploy-traefik-proxy.md
 - docker-compose.prod.yml
+- README.md
+- DEPLOYMENT.md
+- docs/deployment.md
 
-## Visual/Browser Findings
-- 无
+## Additional Discovery (2026-02-23)
+- `docker-compose.prod.yml` 仍包含 `APP_PORT` 直出，需要移除。
+- README/DEPLOYMENT/docs 部署命令仍展示 `APP_PORT`，需改为 Traefik 域名入口。
+- DEPLOYMENT 文档中的 Dokploy 配置需从“反向代理提示”升级为“Traefik 必选配置步骤”。
+
+## Implementation Findings (2026-02-23)
+- 已将生产 compose 改为内部 `expose: 8000`，不再对宿主机公开 `8000`。
+- README 已改为域名访问示例（`https://<your-domain>`）。
+- `DEPLOYMENT.md` 已补充 Dokploy Traefik 必配项：Host 路由、Let's Encrypt、目标端口 `8000`。
+- `docs/deployment.md` 已同步英文部署手册并加入 Traefik 生产要求。
+- `docker compose -f docker-compose.prod.yml config` 可解析通过（仅有 `version` 字段弃用 warning）。

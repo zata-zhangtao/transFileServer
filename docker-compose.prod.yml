@@ -3,8 +3,8 @@ version: "3.8"
 services:
   app:
     image: "${REGISTRY_HOST:-registry.zata.cafe}/${REGISTRY_REPOSITORY:-admin/transfileserver-app}:${APP_IMAGE_TAG:-latest}"
-    ports:
-      - "${APP_PORT:-8000}:8000"
+    expose:
+      - "8000"
     environment:
       - PYTHONUNBUFFERED=1
     volumes:

@@ -8,6 +8,7 @@ This guide describes production deployment for the single-image `admin/transfile
 - Docker installed on your server
 - Access to `registry.zata.cafe` over HTTPS with a valid certificate
 - Registry credentials with pull/push permissions
+- A domain with DNS record pointing to your Dokploy server
 
 ### 1. Login to Private Registry
 
@@ -53,7 +54,6 @@ mkdir -p transfileserver && cd transfileserver
 REGISTRY_HOST=registry.zata.cafe \
 REGISTRY_REPOSITORY=admin/transfileserver-app \
 APP_IMAGE_TAG=latest \
-APP_PORT=8000 \
 docker compose -f docker-compose.prod.yml up -d --pull always
 ```
 
@@ -74,11 +74,21 @@ Required GitHub Secrets:
 - `DOKPLOY_PROD_DEPLOY_HOOK`
 
 Optional GitHub Secret:
-- `PROD_HEALTHCHECK_URL`
+- `PROD_HEALTHCHECK_URL` (example: `https://files.example.com/healthz`)
 
 On `push` to `main`, the workflow pushes:
 - `registry.zata.cafe/admin/transfileserver-app:<sha7>`
 - `registry.zata.cafe/admin/transfileserver-app:latest`
+
+### 4.1 Dokploy Traefik Routing (Required in Production)
+
+Configure Traefik in Dokploy for this app:
+
+1. Bind your domain (for example `files.example.com`)
+2. Use Host-based route matching (`Host(files.example.com)`)
+3. Enable HTTPS with Let's Encrypt
+4. Forward traffic to internal container port `8000`
+5. Do not expose host ports directly for this app in production
 
 ### 5. Rollback
 
@@ -109,6 +119,7 @@ Example:
 - Use HTTPS termination in reverse proxy or platform ingress.
 - Keep registry credentials only in environment variables or GitHub Secrets.
 - Do not commit plaintext credentials.
+- Do not expose app port directly on the host in production.
 
 ## Health Verification
 

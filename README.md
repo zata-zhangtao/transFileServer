@@ -47,12 +47,13 @@ docker build -t transfileserver-app:local .
 REGISTRY_HOST=registry.zata.cafe \
 REGISTRY_REPOSITORY=admin/transfileserver-app \
 APP_IMAGE_TAG=latest \
-APP_PORT=8000 \
 docker compose -f docker-compose.prod.yml up -d --pull always
 ```
 
-App URL: `http://<server>:8000`
-Healthcheck: `http://<server>:8000/healthz`
+App URL: `https://<your-domain>`
+Healthcheck: `https://<your-domain>/healthz`
+
+在 Dokploy 中请通过内置 Traefik 绑定域名并转发到容器内部 `8000` 端口；生产环境不再使用 `APP_PORT` 直接对外暴露。
 
 ## CI/CD (GitHub Actions + Dokploy)
 

@@ -1,82 +1,77 @@
 # Progress Log
 
-## Session: 2026-02-23
+## Session: 2026-02-23 (Traefik Proxy Rollout)
 
 ### Phase 1: Requirements & Discovery
 - **Status:** complete
 - **Started:** 2026-02-23
 - Actions taken:
-  - 阅读任务 PRD 文档并提炼目标架构与改造点。
-  - 读取 planning-with-files 技能并初始化跟踪文件。
+  - 确认用户希望从 PRD 转为实际改造。
+  - 读取并确认已选方案：1A/2A/3A/4A/5A。
+  - 复核现有部署结构与关键文件位置。
 - Files created/modified:
-  - task_plan.md (created)
-  - findings.md (created)
-  - progress.md (created)
-  - task_plan.md (updated)
-  - findings.md (updated)
+  - task_plan.md
+  - findings.md
+  - progress.md
 
 ### Phase 2: Planning & Structure
 - **Status:** complete
 - Actions taken:
-  - 对比 PRD 与现有代码，确认需要改造：单镜像 Dockerfile、main.py 静态托管与健康检查、compose 单服务、CI/CD workflow、文档更新。
-  - 确认前端 API 地址由 `REACT_APP_API_URL` 控制，单镜像下可使用同域默认地址。
+  - 确定改动范围为 compose 与部署文档，不引入额外网关组件。
+  - 确定验收目标：域名访问、HTTPS、/healthz、无端口直出。
 - Files created/modified:
-  - main.py (planned)
-  - Dockerfile (planned)
-  - docker-compose.prod.yml (planned)
-  - .github/workflows/ci-cd.yml (planned)
+  - task_plan.md
+  - findings.md
 
 ### Phase 3: Implementation
 - **Status:** complete
 - Actions taken:
-  - 改造 `main.py`：新增 `/healthz`、前端静态资源托管与 SPA fallback。
-  - 改造 `Dockerfile`：多阶段构建（frontend build + python runtime）。
-  - 改造 `docker-compose.prod.yml`：单服务 `app` + 健康检查 + 持久化卷。
-  - 新增 `.github/workflows/ci-cd.yml`：validate/build_and_push/deploy。
-  - 更新 `build-and-push.sh` 与 `build-and-push-multiplatform.sh` 为单镜像逻辑。
-  - 新增 `.dockerignore`，并更新 `README.md` 与 `DEPLOYMENT.md`。
+  - 修改 `docker-compose.prod.yml`：移除宿主机 `ports`，改为 `expose: [\"8000\"]`。
+  - 更新 `README.md`：生产运行示例移除 `APP_PORT`，统一域名访问说明。
+  - 更新 `DEPLOYMENT.md`：Dokploy 配置改为 Traefik 必选步骤（Host/HTTPS/8000）。
+  - 更新 `docs/deployment.md`：同步英文文档到域名反代模式。
 - Files created/modified:
-  - main.py
-  - Dockerfile
   - docker-compose.prod.yml
-  - .github/workflows/ci-cd.yml
-  - build-and-push.sh
-  - build-and-push-multiplatform.sh
-  - .dockerignore
   - README.md
   - DEPLOYMENT.md
+  - docs/deployment.md
 
 ### Phase 4: Testing & Verification
 - **Status:** complete
 - Actions taken:
-  - `python -m py_compile main.py` 通过。
-  - `BUILD_PATH=build-ci npm run build` 通过（有历史 ESLint warning）。
-  - `python` 调用 `healthcheck()` 返回 `{\"status\": \"ok\"}`。
-  - 尝试 `docker build`，受 Docker daemon 状态限制失败。
+  - 使用 `git diff` 复核所有改动，确认与 PRD 方向一致。
+  - 执行 `docker compose -f docker-compose.prod.yml config` 验证配置可解析。
+  - 记录残留风险：compose 的 `version` 字段出现弃用 warning（不影响运行）。
 - Files created/modified:
+  - findings.md
   - progress.md
 
 ## Test Results
 | Test | Input | Expected | Actual | Status |
 |------|-------|----------|--------|--------|
-|      |       |          |        |        |
-| Backend syntax check | `python -m py_compile main.py` | 无异常退出 | 通过 | ✅ |
-| Frontend build check | `BUILD_PATH=build-ci npm run build` | build 成功 | 通过（有 warning） | ✅ |
-| Healthcheck function | `python - <<PY ... main.healthcheck()` | 返回 `{\"status\":\"ok\"}` | 返回 `{\"status\":\"ok\"}` | ✅ |
-| Docker build check | `docker build -t transfileserver-app:local .` | 成功构建镜像 | Docker daemon 未启动 | ⚠️ |
+| Compose config validation | `docker compose -f docker-compose.prod.yml config` | 配置解析成功 | 成功（含 `version` 弃用 warning） | ✅ |
+| Diff consistency review | `git diff -- docker-compose.prod.yml README.md DEPLOYMENT.md docs/deployment.md` | 仅含 Traefik 相关目标改动 | 符合预期 | ✅ |
 
 ## Error Log
 | Timestamp | Error | Attempt | Resolution |
 |-----------|-------|---------|------------|
 |           |       | 1       |            |
-| 2026-02-23 | frontend build EACCES (`frontend/build`) | 1 | 改用 `BUILD_PATH=build-ci` |
-| 2026-02-23 | Docker daemon unavailable | 1 | 记录环境限制，交由 CI 验证 docker build |
 
 ## 5-Question Reboot Check
 | Question | Answer |
 |----------|--------|
-| Where am I? | Phase 5 |
-| Where am I going? | 交付与用户配置说明 |
-| What's the goal? | 完成单镜像+CI/CD+Dokploy自动部署 |
-| What have I learned? | 无 relay 现存实现；Docker daemon 当前不可用 |
-| What have I done? | 完成单镜像改造、CI/CD、文档与验证 |
+| Where am I? | Phase 5（complete） |
+| Where am I going? | Phase 5 交付总结与后续操作建议 |
+| What's the goal? | Traefik 单域名 HTTPS + 无端口直出 |
+| What have I learned? | 现有架构无需代码重构即可完成 Traefik 接入 |
+| What have I done? | 已完成 compose 与部署文档改造，并通过配置校验 |
+
+### Phase 3 Update (Discovery Sync)
+- 已复核 4 个目标文件：`docker-compose.prod.yml`、`README.md`、`DEPLOYMENT.md`、`docs/deployment.md`。
+- 确认需要移除 `APP_PORT` 相关生产示例，并统一改为域名 + Traefik 访问方式。
+
+### Phase 5: Delivery
+- **Status:** complete
+- Actions taken:
+  - 汇总变更点并附上文件定位，便于直接审阅。
+  - 输出 Dokploy 实际操作的下一步清单（DNS、域名、证书、健康检查）。

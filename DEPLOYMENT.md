@@ -44,12 +44,19 @@
    - `REGISTRY_HOST=registry.zata.cafe`
    - `REGISTRY_REPOSITORY=admin/transfileserver-app`
    - `APP_IMAGE_TAG=latest`
-   - `APP_PORT=8000`（或你想暴露的端口）
-4. 持久化目录：确保 `uploads`（以及可选 `chunks`）映射到持久卷
-5. 健康检查：路径 `/healthz`
-6. 重启策略：`unless-stopped`
+4. 网络与端口：
+   - 不配置宿主机端口直出（生产关闭 `ports`）
+   - 应用内部监听端口保持 `8000`
+5. Traefik（Dokploy 内置）配置：
+   - 绑定域名（例如 `files.example.com`）
+   - 路由规则使用 Host（`files.example.com`）
+   - 启用 HTTPS（Let's Encrypt 自动签发）
+   - 转发目标端口设置为 `8000`
+6. 持久化目录：确保 `uploads`（以及可选 `chunks`）映射到持久卷
+7. 健康检查：路径 `/healthz`
+8. 重启策略：`unless-stopped`
 
-> 提示：如果使用域名，请在 Dokploy/反向代理层将外部域名转发到容器 `8000` 端口。
+> 提示：请先将域名 DNS A/AAAA 记录指向 Dokploy 所在服务器公网 IP，再在 Dokploy 中完成 Traefik 域名与证书配置。
 
 ## 3. Workflow 行为
 
