@@ -10,3 +10,4 @@ wheels/
 .venv
 docker-compose.prod copy.yml
 docker-compose.prod test.yml
+.DS_Store

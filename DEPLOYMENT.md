@@ -1,190 +1,106 @@
-# Docker Hub 部署指南
+# Dokploy + GitHub Actions 自动部署指南（单镜像）
 
-## 📋 部署流程
+本文档对应当前仓库的单镜像部署方案：`transfileserver-app`。
 
-### 1. 准备工作
+## 1. 架构说明
 
-1. 注册 [Docker Hub](https://hub.docker.com/) 账号
-2. 本地登录 Docker Hub：
-   ```bash
-   docker login
-   ```
+- CI/CD：GitHub Actions
+- 镜像仓库：Docker Hub
+- 部署平台：Dokploy
+- 运行模式：单容器（FastAPI + React build 静态资源）
 
-### 2. 构建并推送镜像
+镜像标签策略：
 
-#### 方法一：多平台构建（推荐 - 支持ARM64 Mac构建x86镜像）
+- `${GIT_SHA7}`（可回滚）
+- `latest`（默认追踪）
 
-1. 给脚本执行权限：
-   ```bash
-   chmod +x build-and-push-multiplatform.sh
-   ```
+## 2. 你需要先配置什么
 
-2. 构建并推送多平台镜像：
-   ```bash
-   # 构建支持ARM64和x86_64的镜像
-   ./build-and-push-multiplatform.sh your-username
-   
-   # 或者只构建x86_64版本（适用于x86服务器）
-   ./build-and-push-multiplatform.sh your-username latest linux/amd64
-   
-   # 或者指定特定版本
-   ./build-and-push-multiplatform.sh your-username v1.0 linux/amd64,linux/arm64
-   ```
+### A. Docker Hub
 
-3. 验证多平台支持：
-   ```bash
-   docker buildx imagetools inspect your-username/transfileserver-backend:latest
-   ```
+1. 创建仓库（例如 `yourname/transfileserver-app`）
+2. 生成 Access Token（用于 GitHub Actions 推镜像）
 
-#### 方法二：单平台构建
+### B. GitHub Repository Secrets
 
-1. 给脚本执行权限：
-   ```bash
-   chmod +x build-and-push.sh
-   ```
+在 GitHub 仓库 `Settings -> Secrets and variables -> Actions` 中新增：
 
-2. 构建并推送镜像：
-   ```bash
-   ./build-and-push.sh your-username
-   ```
+1. `DOCKERHUB_USERNAME` = 你的 Docker Hub 用户名
+2. `DOCKERHUB_TOKEN` = Docker Hub Access Token
+3. `DOKPLOY_PROD_DEPLOY_HOOK` = Dokploy 提供的部署 Hook URL
+4. `PROD_HEALTHCHECK_URL`（可选）= 线上健康检查地址（建议配置）
 
-   或者手动构建：
-   ```bash
-   # 构建镜像
-   docker build -t your-username/transfileserver-backend:latest .
-   docker build -t your-username/transfileserver-frontend:latest ./frontend
-   
-   # 推送镜像
-   docker push your-username/transfileserver-backend:latest
-   docker push your-username/transfileserver-frontend:latest
-   ```
+示例：
 
-### 3. 服务器部署
+- `PROD_HEALTHCHECK_URL=https://files.example.com/healthz`
 
-1. 在服务器上创建项目目录：
-   ```bash
-   mkdir transfileserver && cd transfileserver
-   ```
+### C. Dokploy 应用配置
 
-2. 下载生产环境配置文件：
-   ```bash
-   wget https://raw.githubusercontent.com/your-repo/transfileserver/main/docker-compose.prod.yml
-   ```
+在 Dokploy 新建应用（建议名：`transfileserver-prod`）：
 
-3. 编辑配置文件：
-   ```bash
-   nano docker-compose.prod.yml
-   ```
-   
-   修改以下内容：
-   - `zata/transfileserver-backend:latest` → `your-dockerhub-username/transfileserver-backend:latest`
-   - `zata/transfileserver-frontend:latest` → `your-dockerhub-username/transfileserver-frontend:latest`
-   - `<backend-port>` → 您想要的后端端口号（如：8000）
-   - `<frontend-port>` → 您想要的前端端口号（如：80）
-   - `<backend-port>` in REACT_APP_API_URL → 与上面后端端口号相同
-   
-   **重要**：确保 `REACT_APP_API_URL` 中的URL是从用户浏览器可以访问的地址：
-   - 如果使用域名：`http://your-domain.com:8000`
-   - 如果使用IP：`http://your-server-ip:8000`
-   - 如果本地测试：`http://localhost:8000`
+1. 类型选择：`Docker Compose`
+2. Compose 内容使用仓库根目录的 `docker-compose.prod.yml`
+3. 环境变量建议：
+   - `DOCKERHUB_USERNAME=yourname`
+   - `APP_IMAGE_TAG=latest`
+   - `APP_PORT=8000`（或你想暴露的端口）
+4. 持久化目录：确保 `uploads`（以及可选 `chunks`）映射到持久卷
+5. 健康检查：路径 `/healthz`
+6. 重启策略：`unless-stopped`
 
-4. 启动服务：
-   ```bash
-   docker-compose -f docker-compose.prod.yml up -d
-   ```
+> 提示：如果使用域名，请在 Dokploy/反向代理层将外部域名转发到容器 `8000` 端口。
 
-5. 查看运行状态：
-   ```bash
-   docker-compose -f docker-compose.prod.yml ps
-   docker-compose -f docker-compose.prod.yml logs
-   ```
+## 3. Workflow 行为
 
-### 4. 域名和反向代理配置（可选）
+工作流文件：`.github/workflows/ci-cd.yml`
 
-如果使用域名，建议配置Nginx反向代理：
+- `pull_request` 到 `main`：
+  - Python 依赖安装
+  - 后端语法与启动健康检查
+  - 前端构建检查
+  - Docker 构建检查
+- `push` 到 `main`：
+  - 执行上述校验
+  - 构建并推送
+    - `yourname/transfileserver-app:<sha7>`
+    - `yourname/transfileserver-app:latest`
+  - 调用 `DOKPLOY_PROD_DEPLOY_HOOK`
+  - 轮询 `PROD_HEALTHCHECK_URL`（若配置）
 
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-    
-    location / {
-        proxy_pass http://localhost:80;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-    
-    location /api/ {
-        proxy_pass http://localhost:8000/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
+## 4. 手动构建/推送（可选）
+
+### 单平台
+
+```bash
+./build-and-push.sh yourname v1.0.0
 ```
 
-### 5. 更新部署
+### 多平台
 
-当代码更新时：
-
-1. 重新构建并推送镜像：
-   ```bash
-   ./build-and-push.sh your-username
-   ```
-
-2. 在服务器上拉取最新镜像并重启：
-   ```bash
-   docker-compose -f docker-compose.prod.yml pull
-   docker-compose -f docker-compose.prod.yml up -d
-   ```
-
-### 6. 环境变量配置
-
-#### 前端环境变量说明
-
-前端镜像现在支持运行时环境变量配置。`REACT_APP_API_URL` 环境变量会在容器启动时动态替换到构建好的JavaScript文件中。
-
-**重要提示**：
-- 前端是在用户浏览器中运行的，所以API URL必须是浏览器可以访问的地址
-- 不能使用Docker内部服务名（如 `http://backend:8000`）
-- 必须使用外部可访问的地址
-
-#### 使用 .env 文件管理环境变量
-
-您可以创建 `.env` 文件来管理环境变量：
-
-```env
-DOCKERHUB_USERNAME=your-username
-SERVER_DOMAIN=your-domain.com
-BACKEND_PORT=8000
-FRONTEND_PORT=80
-API_URL=http://your-domain.com:8000
+```bash
+./build-and-push-multiplatform.sh yourname v1.0.0 linux/amd64,linux/arm64
 ```
 
-然后在 `docker-compose.prod.yml` 中使用：
-```yaml
-services:
-  backend:
-    image: ${DOCKERHUB_USERNAME}/transfileserver-backend:latest
-    ports:
-      - "${BACKEND_PORT}:8000"
-  
-  frontend:
-    image: ${DOCKERHUB_USERNAME}/transfileserver-frontend:latest
-    ports:
-      - "${FRONTEND_PORT}:80"
-    environment:
-      - REACT_APP_API_URL=${API_URL}
+## 5. 回滚方案
+
+### 推荐：回滚到历史 SHA 标签
+
+1. 在 Docker Hub 找到上一个稳定标签（如 `a1b2c3d`）
+2. 在 Dokploy 将 `APP_IMAGE_TAG` 改为该标签
+3. 重新部署（Deploy）
+
+或在服务器上手动：
+
+```bash
+DOCKERHUB_USERNAME=yourname APP_IMAGE_TAG=a1b2c3d docker compose -f docker-compose.prod.yml up -d --pull always
 ```
 
-## 🚀 优势
+## 6. 验证清单
 
-- ✅ 无需在服务器上构建，部署快速
-- ✅ 版本管理方便
-- ✅ 易于扩展到多服务器
-- ✅ 支持自动化CI/CD
+部署成功后至少验证：
 
-## 🔧 故障排除
+1. `GET /healthz` 返回 200
+2. 前端首页可访问
+3. 上传文件、下载文件、文件列表、删除可用
+4. 分片上传可用
 
-1. **镜像推送失败**：检查Docker Hub登录状态
-2. **服务无法启动**：检查端口占用和权限
-3. **文件上传失败**：检查uploads目录权限 

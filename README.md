@@ -1,65 +1,73 @@
 # File Transfer Server
 
-A simple file transfer server that allows you to upload files or text from one computer and download them from another using unique file IDs.
-
-## TODO
-1. if file more than 100MB， trun to online tranfer
-
-
+FastAPI + React 的文件传输服务，支持文件/文本上传、分片上传、大文件下载进度、文件列表与删除。
 
 ## Features
 
-- Upload files or text content
-- Download files using unique IDs
-- List all available files
-- React frontend with clean UI
-- FastAPI backend with CORS enabled
+- 文件上传（`POST /upload`）
+- 分片上传（`POST /upload-chunk` + `GET /upload-status/{file_id}`）
+- 文件下载（`GET /download/{file_id}`）
+- 文件列表（`GET /files`）
+- 文件删除（`DELETE /delete/{file_id}`）
+- 健康检查（`GET /healthz`）
+- 生产环境单镜像（后端 + 前端静态资源）
 
-## Setup
+## Local Development
 
-### Backend (FastAPI)
+### 1) Backend
 
-1. Install Python dependencies:
 ```bash
 pip install -r requirements.txt
-```
-
-2. Run the server:
-```bash
 python main.py
 ```
 
-The API will be available at `http://localhost:8000`
+Backend: `http://localhost:8000`
 
-### Frontend (React)
+### 2) Frontend
 
-1. Navigate to the frontend directory:
 ```bash
 cd frontend
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Start the development server:
-```bash
+npm ci
 npm start
 ```
 
-The frontend will be available at `http://localhost:3000`
+Frontend: `http://localhost:3000`
 
-## Usage
+## Production (Single Image)
 
-1. **Upload**: Select a file or enter text content and click "Upload"
-2. **Download by ID**: Enter a file ID and click "Download"
-3. **Browse Files**: View all available files and download them directly
+### Build local image
 
-## API Endpoints
+```bash
+docker build -t transfileserver-app:local .
+```
 
-- `POST /upload` - Upload a file or text
-- `GET /download/{file_id}` - Download a file by ID
-- `GET /files` - List all available files
+### Run with compose
 
-Files are stored in the `uploads/` directory on the server.
+```bash
+DOCKERHUB_USERNAME=your-dockerhub-username \
+APP_IMAGE_TAG=latest \
+APP_PORT=8000 \
+docker compose -f docker-compose.prod.yml up -d --pull always
+```
+
+App URL: `http://<server>:8000`
+Healthcheck: `http://<server>:8000/healthz`
+
+## CI/CD (GitHub Actions + Dokploy)
+
+已提供 workflow：`.github/workflows/ci-cd.yml`
+
+- `pull_request -> main`：只执行 validate（不部署）
+- `push -> main`：validate + build/push + deploy
+
+必需 GitHub Secrets：
+
+- `DOCKERHUB_USERNAME`
+- `DOCKERHUB_TOKEN`
+- `DOKPLOY_PROD_DEPLOY_HOOK`
+
+可选 GitHub Secret：
+
+- `PROD_HEALTHCHECK_URL`（例如 `https://your-domain/healthz`）
+
+详细部署步骤见 `DEPLOYMENT.md`。

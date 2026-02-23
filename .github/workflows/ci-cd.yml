@@ -1,0 +1,129 @@
+name: CI/CD
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+env:
+  IMAGE_NAME: transfileserver-app
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backend dependencies
+        run: pip install -r requirements.txt
+
+      - name: Backend syntax check
+        run: python -m py_compile main.py
+
+      - name: Backend healthcheck smoke test
+        run: |
+          python -m uvicorn main:app --host 127.0.0.1 --port 8000 &
+          UVICORN_PID=$!
+          sleep 4
+          curl --fail --show-error --silent http://127.0.0.1:8000/healthz
+          kill $UVICORN_PID
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Frontend build check
+        run: npm run build
+        working-directory: frontend
+
+      - name: Docker build check
+        run: docker build -t local/${IMAGE_NAME}:ci .
+
+  build_and_push:
+    name: Build and Push
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Generate image tags
+        run: echo "SHA_TAG=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.SHA_TAG }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+
+  deploy:
+    name: Deploy to Dokploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: build_and_push
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Trigger Dokploy deploy hook
+        env:
+          DOKPLOY_PROD_DEPLOY_HOOK: ${{ secrets.DOKPLOY_PROD_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$DOKPLOY_PROD_DEPLOY_HOOK" ]; then
+            echo "DOKPLOY_PROD_DEPLOY_HOOK is not configured"
+            exit 1
+          fi
+          curl --fail --show-error --silent -X POST "$DOKPLOY_PROD_DEPLOY_HOOK"
+          echo "Dokploy deploy hook triggered"
+
+      - name: Wait for production healthcheck
+        env:
+          PROD_HEALTHCHECK_URL: ${{ secrets.PROD_HEALTHCHECK_URL }}
+        run: |
+          if [ -z "$PROD_HEALTHCHECK_URL" ]; then
+            echo "PROD_HEALTHCHECK_URL not set, skip post-deploy health verification"
+            exit 0
+          fi
+
+          for i in {1..30}; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "$PROD_HEALTHCHECK_URL" || true)
+            if [ "$code" = "200" ]; then
+              echo "Healthcheck passed"
+              exit 0
+            fi
+            echo "Healthcheck not ready (attempt $i/30, code=$code), retry in 10s..."
+            sleep 10
+          done
+
+          echo "Healthcheck failed after timeout"
+          exit 1
