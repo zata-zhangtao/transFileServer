@@ -2,32 +2,34 @@
 
 # 远程SSH部署脚本 - 用于快速部署test版本
 # 支持删除旧版本和部署新版本
-# 使用方法: ./deploy-remote-test.sh <server-ip> <ssh-user> <dockerhub-username> [ssh-port] [backend-port] [frontend-port]
-# 示例: ./deploy-remote-test.sh 192.168.1.100 root zata
-# 示例: ./deploy-remote-test.sh 47.94.199.65 root zata 22 8002 8003
+# 使用方法: ./deploy-remote-test.sh <server-ip> <ssh-user> <image-prefix> [ssh-port] [backend-port] [frontend-port] [registry-host]
+# 示例: ./deploy-remote-test.sh 192.168.1.100 root admin/transfileserver
+# 示例: ./deploy-remote-test.sh 47.94.199.65 root admin/transfileserver 22 8002 8003 registry.zata.cafe
 
 # 检查参数
 if [ $# -lt 3 ]; then
     echo "❌ 参数不足"
-    echo "用法: $0 <server-ip> <ssh-user> <dockerhub-username> [ssh-port] [backend-port] [frontend-port]"
-    echo "示例: $0 47.94.199.65 root zata"
-    echo "示例: $0 47.94.199.65 root zata 22 8002 8003"
+    echo "用法: $0 <server-ip> <ssh-user> <image-prefix> [ssh-port] [backend-port] [frontend-port] [registry-host]"
+    echo "示例: $0 47.94.199.65 root admin/transfileserver"
+    echo "示例: $0 47.94.199.65 root admin/transfileserver 22 8002 8003 registry.zata.cafe"
     exit 1
 fi
 
 # 参数设置
 SERVER_IP=$1
 SSH_USER=$2
-DOCKERHUB_USERNAME=$3
+IMAGE_PREFIX=$3
 SSH_PORT=${4:-22}
 BACKEND_PORT=${5:-8002}
 FRONTEND_PORT=${6:-3003}
+REGISTRY_HOST=${7:-registry.zata.cafe}
 
 echo "🚀 远程部署test版本配置："
 echo "  服务器IP: $SERVER_IP"
 echo "  SSH用户: $SSH_USER"
 echo "  SSH端口: $SSH_PORT"
-echo "  Docker Hub用户: $DOCKERHUB_USERNAME"
+echo "  Registry Host: $REGISTRY_HOST"
+echo "  Image Prefix: $IMAGE_PREFIX"
 echo "  后端端口: $BACKEND_PORT"
 echo "  前端端口: $FRONTEND_PORT"
 echo ""
@@ -47,10 +49,11 @@ REMOTE_SCRIPT=$(cat <<'EOF'
 #!/bin/bash
 
 # 设置变量
-DOCKERHUB_USERNAME="$1"
+IMAGE_PREFIX="$1"
 BACKEND_PORT="$2"
 FRONTEND_PORT="$3"
 SERVER_IP="$4"
+REGISTRY_HOST="$5"
 
 echo "🗑️  清理旧的test版本..."
 
@@ -59,11 +62,11 @@ docker ps -a | grep "transfileserver.*:test" | awk '{print $1}' | xargs -r docke
 docker ps -a | grep "transfileserver.*:test" | awk '{print $1}' | xargs -r docker rm
 
 # 删除旧的test版本镜像
-docker images | grep "$DOCKERHUB_USERNAME/transfileserver:test" | awk '{print $3}' | xargs -r docker rmi
+docker images | grep "$REGISTRY_HOST/$IMAGE_PREFIX-.*:test" | awk '{print $3}' | xargs -r docker rmi
 
 echo "📥 拉取新的test版本镜像..."
-docker pull $DOCKERHUB_USERNAME/transfileserver-backend:test
-docker pull $DOCKERHUB_USERNAME/transfileserver-frontend:test
+docker pull $REGISTRY_HOST/$IMAGE_PREFIX-backend:test
+docker pull $REGISTRY_HOST/$IMAGE_PREFIX-frontend:test
 
 echo "🚀 启动新的test版本..."
 
@@ -73,7 +76,7 @@ version: '3.8'
 
 services:
   backend-test:
-    image: $DOCKERHUB_USERNAME/transfileserver-backend:test
+    image: $REGISTRY_HOST/$IMAGE_PREFIX-backend:test
     ports:
       - "$BACKEND_PORT:8000"
     volumes:
@@ -83,7 +86,7 @@ services:
     restart: unless-stopped
 
   frontend-test:
-    image: $DOCKERHUB_USERNAME/transfileserver-frontend:test
+    image: $REGISTRY_HOST/$IMAGE_PREFIX-frontend:test
     ports:
       - "$FRONTEND_PORT:80"
     depends_on:
@@ -117,7 +120,7 @@ echo "📤 上传部署脚本到远程服务器..."
 echo "$REMOTE_SCRIPT" | ssh -p $SSH_PORT $SSH_USER@$SERVER_IP "cat > deploy-test.sh && chmod +x deploy-test.sh"
 
 echo "🚀 在远程服务器上执行部署..."
-ssh -p $SSH_PORT $SSH_USER@$SERVER_IP "./deploy-test.sh '$DOCKERHUB_USERNAME' '$BACKEND_PORT' '$FRONTEND_PORT' '$SERVER_IP'"
+ssh -p $SSH_PORT $SSH_USER@$SERVER_IP "./deploy-test.sh '$IMAGE_PREFIX' '$BACKEND_PORT' '$FRONTEND_PORT' '$SERVER_IP' '$REGISTRY_HOST'"
 
 echo ""
 echo "✅ 远程部署完成！"

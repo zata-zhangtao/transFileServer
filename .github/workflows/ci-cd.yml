@@ -10,6 +10,8 @@ on:
 
 env:
   IMAGE_NAME: transfileserver-app
+  REGISTRY_HOST: registry.zata.cafe
+  REGISTRY_REPOSITORY: admin/transfileserver-app
 
 jobs:
   validate:
@@ -70,11 +72,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Docker Hub
+      - name: Log in to private registry
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ${{ env.REGISTRY_HOST }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
 
       - name: Generate image tags
         run: echo "SHA_TAG=${GITHUB_SHA::7}" >> "$GITHUB_ENV"
@@ -85,8 +88,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ env.SHA_TAG }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY_HOST }}/${{ env.REGISTRY_REPOSITORY }}:${{ env.SHA_TAG }}
+            ${{ env.REGISTRY_HOST }}/${{ env.REGISTRY_REPOSITORY }}:latest
 
   deploy:
     name: Deploy to Dokploy

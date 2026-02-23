@@ -69,14 +69,14 @@ docker-compose up
 # Production environment
 docker-compose -f docker-compose.prod.yml up -d
 
-# Build and push to Docker Hub
-./build-and-push.sh your-username
+# Build and push to private registry
+REGISTRY_USERNAME=admin REGISTRY_PASSWORD=****** ./build-and-push.sh latest
 
 # Multi-platform build (supports ARM64 Mac building x86 images)
-./build-and-push-multiplatform.sh your-username
+REGISTRY_USERNAME=admin REGISTRY_PASSWORD=****** ./build-and-push-multiplatform.sh latest linux/amd64,linux/arm64
 
 # Remote deployment to test servers
-./deploy-remote-test.sh <server-ip> <ssh-user> <dockerhub-username> [ssh-port] [backend-port] [frontend-port]
+./deploy-remote-test.sh <server-ip> <ssh-user> <registry-namespace> [ssh-port] [backend-port] [frontend-port] [registry-host]
 ```
 
 ## File Structure Notes
@@ -121,16 +121,15 @@ docker-compose -f docker-compose.prod.yml up -d
 
 ## Deployment Notes
 
-### Docker Hub Deployment
+### Private Registry Deployment
 - Multi-platform build script supports ARM64 Mac building x86 images
-- Frontend image supports runtime environment variable injection
-- `REACT_APP_API_URL` is dynamically replaced at container startup
+- Production uses single image: `transfileserver-app`
+- Default image path: `registry.zata.cafe/admin/transfileserver-app`
 - Use `.env` files for environment variable management in production
 - **Remote Deployment**: Automated SSH-based deployment script for test environments
 
 ### Production Configuration
-- Frontend requires browser-accessible API URL (not Docker internal names)
-- Backend and frontend have separate Docker images for scalability
+- Compose variables: `REGISTRY_HOST`, `REGISTRY_NAMESPACE`, `APP_IMAGE_TAG`, `APP_PORT`
 - Deployment documentation available in `docs/deployment.md`
 
 ## Documentation

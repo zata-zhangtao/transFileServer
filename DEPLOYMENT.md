@@ -5,7 +5,7 @@
 ## 1. 架构说明
 
 - CI/CD：GitHub Actions
-- 镜像仓库：Docker Hub
+- 镜像仓库：私有仓库 `registry.zata.cafe`
 - 部署平台：Dokploy
 - 运行模式：单容器（FastAPI + React build 静态资源）
 
@@ -16,20 +16,20 @@
 
 ## 2. 你需要先配置什么
 
-### A. Docker Hub
+### A. 私有镜像仓库（registry.zata.cafe）
 
-1. 创建仓库（例如 `yourname/transfileserver-app`）
-2. 生成 Access Token（用于 GitHub Actions 推镜像）
+1. 确保仓库路径可用（例如 `registry.zata.cafe/admin/transfileserver-app`）
+2. 准备可推送凭据（用户名 + 密码）
+### B. GitHub Repository Secrets（仓库级）
 
-### B. GitHub Repository Secrets
+在 GitHub 仓库 `Settings → Secrets and variables → Actions` 中新增以下 **Repository Secrets**：
 
-在 GitHub 仓库 `Settings -> Secrets and variables -> Actions` 中新增：
-
-1. `DOCKERHUB_USERNAME` = 你的 Docker Hub 用户名
-2. `DOCKERHUB_TOKEN` = Docker Hub Access Token
+1. `REGISTRY_USERNAME` = 私有仓库用户名（例如 `admin`）
+2. `REGISTRY_PASSWORD` = 私有仓库密码
 3. `DOKPLOY_PROD_DEPLOY_HOOK` = Dokploy 提供的部署 Hook URL
 4. `PROD_HEALTHCHECK_URL`（可选）= 线上健康检查地址（建议配置）
 
+> 说明：以上密钥只需配置在仓库层面即可，工作流运行时会自动注入，无需为每个环境单独设置 Environment Secrets。
 示例：
 
 - `PROD_HEALTHCHECK_URL=https://files.example.com/healthz`
@@ -41,7 +41,8 @@
 1. 类型选择：`Docker Compose`
 2. Compose 内容使用仓库根目录的 `docker-compose.prod.yml`
 3. 环境变量建议：
-   - `DOCKERHUB_USERNAME=yourname`
+   - `REGISTRY_HOST=registry.zata.cafe`
+   - `REGISTRY_REPOSITORY=admin/transfileserver-app`
    - `APP_IMAGE_TAG=latest`
    - `APP_PORT=8000`（或你想暴露的端口）
 4. 持久化目录：确保 `uploads`（以及可选 `chunks`）映射到持久卷
@@ -62,8 +63,8 @@
 - `push` 到 `main`：
   - 执行上述校验
   - 构建并推送
-    - `yourname/transfileserver-app:<sha7>`
-    - `yourname/transfileserver-app:latest`
+    - `registry.zata.cafe/admin/transfileserver-app:<sha7>`
+    - `registry.zata.cafe/admin/transfileserver-app:latest`
   - 调用 `DOKPLOY_PROD_DEPLOY_HOOK`
   - 轮询 `PROD_HEALTHCHECK_URL`（若配置）
 
@@ -72,27 +73,27 @@
 ### 单平台
 
 ```bash
-./build-and-push.sh yourname v1.0.0
+REGISTRY_USERNAME=admin REGISTRY_PASSWORD=****** ./build-and-push.sh v1.0.0
 ```
 
 ### 多平台
 
 ```bash
-./build-and-push-multiplatform.sh yourname v1.0.0 linux/amd64,linux/arm64
+REGISTRY_USERNAME=admin REGISTRY_PASSWORD=****** ./build-and-push-multiplatform.sh v1.0.0 linux/amd64,linux/arm64
 ```
 
 ## 5. 回滚方案
 
 ### 推荐：回滚到历史 SHA 标签
 
-1. 在 Docker Hub 找到上一个稳定标签（如 `a1b2c3d`）
+1. 在私有仓库找到上一个稳定标签（如 `a1b2c3d`）
 2. 在 Dokploy 将 `APP_IMAGE_TAG` 改为该标签
 3. 重新部署（Deploy）
 
 或在服务器上手动：
 
 ```bash
-DOCKERHUB_USERNAME=yourname APP_IMAGE_TAG=a1b2c3d docker compose -f docker-compose.prod.yml up -d --pull always
+REGISTRY_HOST=registry.zata.cafe REGISTRY_REPOSITORY=admin/transfileserver-app APP_IMAGE_TAG=a1b2c3d docker compose -f docker-compose.prod.yml up -d --pull always
 ```
 
 ## 6. 验证清单
@@ -103,4 +104,3 @@ DOCKERHUB_USERNAME=yourname APP_IMAGE_TAG=a1b2c3d docker compose -f docker-compo
 2. 前端首页可访问
 3. 上传文件、下载文件、文件列表、删除可用
 4. 分片上传可用
-

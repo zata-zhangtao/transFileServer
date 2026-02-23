@@ -44,7 +44,8 @@ docker build -t transfileserver-app:local .
 ### Run with compose
 
 ```bash
-DOCKERHUB_USERNAME=your-dockerhub-username \
+REGISTRY_HOST=registry.zata.cafe \
+REGISTRY_REPOSITORY=admin/transfileserver-app \
 APP_IMAGE_TAG=latest \
 APP_PORT=8000 \
 docker compose -f docker-compose.prod.yml up -d --pull always
@@ -62,8 +63,8 @@ Healthcheck: `http://<server>:8000/healthz`
 
 必需 GitHub Secrets：
 
-- `DOCKERHUB_USERNAME`
-- `DOCKERHUB_TOKEN`
+- `REGISTRY_USERNAME`
+- `REGISTRY_PASSWORD`
 - `DOKPLOY_PROD_DEPLOY_HOOK`
 
 可选 GitHub Secret：
