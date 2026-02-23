@@ -53,7 +53,7 @@ function App() {
 
   // Async function to fetch files from the server
   // async/await is modern JavaScript for handling asynchronous operations
-  const fetchFiles = async () => {
+  const fetchFiles = useCallback(async () => {
     try {
       // fetch() is the modern way to make HTTP requests (replaces old XMLHttpRequest)
       const response = await fetch(`${API_BASE}/files`);
@@ -69,14 +69,14 @@ function App() {
       // Handle any errors that occur during the fetch
       console.error('Error fetching files:', error);
     }
-  };
+  }, [API_BASE]);
 
   // useEffect Hook - runs side effects (code that affects things outside the component)
   // This is similar to componentDidMount in class components
   useEffect(() => {
     // This function runs after the component mounts (appears on screen)
     fetchFiles();
-  }, []); // Empty dependency array [] means this only runs once when component mounts
+  }, [fetchFiles]); // Re-run only if fetchFiles reference changes
 
   // Event handler function for file upload
   // async because we need to wait for the server response
@@ -188,7 +188,7 @@ function App() {
   const generateFileId = () => {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
       const r = Math.random() * 16 | 0;
-      const v = c == 'x' ? r : (r & 0x3 | 0x8);
+      const v = c === 'x' ? r : ((r & 0x3) | 0x8);
       return v.toString(16);
     });
   };
@@ -409,7 +409,7 @@ function App() {
       
       xhr.send();
     });
-  }, [updateProgress, updateStatus]);
+  }, [API_BASE, updateProgress, updateStatus]);
 
   // Handler for downloading by ID (from the input field)
   const handleDownloadById = async () => {
