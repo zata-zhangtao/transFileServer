@@ -11,3 +11,12 @@ wheels/
 docker-compose.prod copy.yml
 docker-compose.prod test.yml
 .DS_Store
+
+# Generated docs and frontend build artifacts
+site/
+frontend/build-ci/
+
+# Temporary planning artifacts
+task_plan.md
+findings.md
+progress.md
