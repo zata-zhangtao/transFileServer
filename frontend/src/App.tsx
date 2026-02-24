@@ -44,9 +44,9 @@ function App() {
   const [downloadProgress, setDownloadProgress] = useState<{[key: string]: number}>({});
   const [downloadStatus, setDownloadStatus] = useState<{[key: string]: 'downloading' | 'completed' | 'error'}>({});
 
-  // Environment variable for API base URL - falls back to localhost if not set
-  // process.env gives access to environment variables
-  const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+  // In production we default to same-origin API routes (e.g. /upload-chunk).
+  // REACT_APP_API_URL can still override this for separated frontend/backend deployments.
+  const API_BASE = (process.env.REACT_APP_API_URL || '').replace(/\/+$/, '');
 
   // File size limit for direct upload: 10MB in bytes (larger files will use chunked upload)
   const CHUNK_UPLOAD_THRESHOLD = 10 * 1024 * 1024; // 10MB
