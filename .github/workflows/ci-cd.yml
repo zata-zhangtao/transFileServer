@@ -9,6 +9,10 @@ on:
       - main
       - dev
 
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   IMAGE_NAME: transfileserver-app
   REGISTRY_HOST: registry.zata.cafe

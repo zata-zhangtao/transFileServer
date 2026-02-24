@@ -57,6 +57,8 @@ APP_IMAGE_TAG=latest \
 docker compose -f docker-compose.prod.yml up -d --pull always
 ```
 
+`docker-compose.prod.yml` includes `pull_policy: always`, so each redeploy will pull the image again even when using the `latest` tag.
+
 4. Check status:
 
 ```bash
@@ -97,6 +99,8 @@ Rollback by pinning a previous SHA tag:
 ```bash
 REGISTRY_HOST=registry.zata.cafe REGISTRY_REPOSITORY=admin/transfileserver-app APP_IMAGE_TAG=a1b2c3d docker compose -f docker-compose.prod.yml up -d --pull always
 ```
+
+For regular production releases, prefer pinning `APP_IMAGE_TAG` to a `sha7` tag instead of always tracking `latest`.
 
 ### 6. Remote Test Deployment Script (Legacy Two-Image Flow)
 

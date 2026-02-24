@@ -44,6 +44,7 @@
    - `REGISTRY_HOST=registry.zata.cafe`
    - `REGISTRY_REPOSITORY=admin/transfileserver-app`
    - `APP_IMAGE_TAG=latest`
+   - Compose 已设置 `pull_policy: always`，每次部署都会强制拉取镜像
 4. 网络与端口：
    - 不配置宿主机端口直出（生产关闭 `ports`）
    - 应用内部监听端口保持 `8000`
@@ -96,6 +97,8 @@ REGISTRY_USERNAME=admin REGISTRY_PASSWORD=****** ./build-and-push-multiplatform.
 1. 在私有仓库找到上一个稳定标签（如 `a1b2c3d`）
 2. 在 Dokploy 将 `APP_IMAGE_TAG` 改为该标签
 3. 重新部署（Deploy）
+
+> 生产建议：日常发布也可以将 `APP_IMAGE_TAG` 固定为本次构建的 `sha7`，避免 `latest` 标签漂移导致的旧镜像问题。
 
 或在服务器上手动：
 

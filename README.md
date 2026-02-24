@@ -54,6 +54,7 @@ App URL: `https://<your-domain>`
 Healthcheck: `https://<your-domain>/healthz`
 
 在 Dokploy 中请通过内置 Traefik 绑定域名并转发到容器内部 `8000` 端口；生产环境不再使用 `APP_PORT` 直接对外暴露。
+`docker-compose.prod.yml` 已配置 `pull_policy: always`，避免 `latest` 标签命中旧镜像缓存。
 
 ## CI/CD (GitHub Actions + Dokploy)
 
