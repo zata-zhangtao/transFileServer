@@ -13,6 +13,32 @@ interface FileInfo {
   type?: string;      // Optional: file type (from backend response)
 }
 
+const LOCALHOST_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
+
+function resolveApiBase(configuredBase: string): string {
+  const trimmed = configuredBase.trim().replace(/\/+$/, '');
+
+  if (!trimmed) {
+    return '';
+  }
+
+  try {
+    const apiUrl = new URL(trimmed);
+    const frontendIsLocal = LOCALHOST_HOSTS.has(window.location.hostname);
+    const apiIsLocal = LOCALHOST_HOSTS.has(apiUrl.hostname);
+
+    // Safety net for production: avoid pointing browser requests to user localhost.
+    if (apiIsLocal && !frontendIsLocal) {
+      return '';
+    }
+  } catch {
+    // Relative API base like "/api" should pass through.
+    return trimmed;
+  }
+
+  return trimmed;
+}
+
 // Main App component - this is a "functional component" (modern React style)
 // Components are like custom HTML elements that can contain logic and state
 function App() {
@@ -44,9 +70,9 @@ function App() {
   const [downloadProgress, setDownloadProgress] = useState<{[key: string]: number}>({});
   const [downloadStatus, setDownloadStatus] = useState<{[key: string]: 'downloading' | 'completed' | 'error'}>({});
 
-  // In production we default to same-origin API routes (e.g. /upload-chunk).
-  // REACT_APP_API_URL can still override this for separated frontend/backend deployments.
-  const API_BASE = (process.env.REACT_APP_API_URL || '').replace(/\/+$/, '');
+  // In production we default to same-origin API routes when API URL is empty.
+  // If API URL is misconfigured as localhost in a remote browser, we fall back to same-origin.
+  const API_BASE = resolveApiBase(process.env.REACT_APP_API_URL || '');
 
   // File size limit for direct upload: 10MB in bytes (larger files will use chunked upload)
   const CHUNK_UPLOAD_THRESHOLD = 10 * 1024 * 1024; // 10MB
